@@ -1,16 +1,37 @@
-name: Publish
+# 发布到 npm（@copylee/dsh-better-display）
+#
+# 首次发布（手动，一次即可）：Trusted Publishing 只能在包已存在于 npm 后配置
+#   npm login
+#   pnpm install && pnpm run check
+#   npm publish --access public        # prepare 脚本会自动构建 lib/
+#
+# 之后自动发布：
+#   1. 推送版本 tag：先改 package.json 的 version 并推到 main，
+#      然后 `git tag v0.1.1 && git push origin v0.1.1`
+#   2. 手动：Actions → Publish to npm → Run workflow（发布所选分支上 package.json 的当前版本）
+#   已发布过的版本会自动跳过，重复运行是安全的。
+#
+# 认证（二选一）：
+#   - Trusted Publishing（推荐，无需密钥）：npmjs.com → 包设置 → Trusted Publisher → GitHub Actions，
+#     填 owner=copylee711、repository=dsh-better-display、workflow=publish.yml
+#   - 访问令牌：仓库 Settings → Secrets and variables → Actions 新建 NPM_TOKEN（有发布权限的 Granular Access Token）
+name: Publish to npm
 
 on:
-  release:
-    types: [published]
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
-  id-token: write
+  id-token: write # Trusted Publishing / provenance 需要
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
 
 jobs:
-  npm:
-    if: ${{ !github.event.release.prerelease }}
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -19,17 +40,43 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          registry-url: https://registry.npmjs.org/
-      - name: Verify release version
-        shell: bash
+          registry-url: https://registry.npmjs.org
+
+      # Trusted Publishing 需要 npm >= 11.5.1
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - name: Check version
+        id: check
         run: |
-          release_version="${GITHUB_REF_NAME#v}"
-          package_version="$(node -p "require('./package.json').version")"
-          if [[ "$GITHUB_REF_NAME" != v* || "$release_version" != "$package_version" ]]; then
-            echo "Release tag $GITHUB_REF_NAME must match package version v$package_version."
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          if [[ "$GITHUB_REF" == refs/tags/* && "${GITHUB_REF_NAME#v}" != "$version" ]]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match package.json version $version"
             exit 1
           fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if already published
+        id: exists
+        run: |
+          if npm view "${{ steps.check.outputs.name }}@${{ steps.check.outputs.version }}" version >/dev/null 2>&1; then
+            echo "::notice::${{ steps.check.outputs.name }}@${{ steps.check.outputs.version }} is already on npm, skipping"
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - run: pnpm install --frozen-lockfile
+        if: steps.exists.outputs.published == 'false'
       - run: pnpm run check
+        if: steps.exists.outputs.published == 'false'
       - run: pnpm run build
-      - run: npm publish
+        if: steps.exists.outputs.published == 'false'
+
+      - name: Publish
+        if: steps.exists.outputs.published == 'false'
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

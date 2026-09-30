@@ -118,6 +118,25 @@ pnpm run build
 pnpm pack --dry-run
 ```
 
+### Release
+
+Publish the first version by hand (npm Trusted Publishing can only be configured once the package exists):
+
+```sh
+npm login
+pnpm install && pnpm run check
+npm publish --access public   # the prepare script builds lib/
+```
+
+Then on npmjs.com go to package settings → Trusted Publisher → GitHub Actions and enter `copylee711` / `dsh-better-display` / `publish.yml`, or add an `NPM_TOKEN` repository secret instead. After that, a release is:
+
+```sh
+# bump package.json's version and push to main
+git tag v0.1.1 && git push origin v0.1.1
+```
+
+`publish.yml` checks that the tag matches the version, runs the tests and build, and publishes. Versions that are already on npm are skipped. You can also run it by hand from the Actions tab.
+
 ## Credits
 
 - [dsh-better-markdown](https://github.com/zerob13/dsh-better-markdown) (MIT, © duskzhen): Markstream pipeline, build setup and base styles (see `THIRD_PARTY_NOTICES.md`)
