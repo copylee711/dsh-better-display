@@ -130,3 +130,17 @@ describe('rich rendering', () => {
     expect(view.container.innerHTML).toBe('')
   })
 })
+
+describe('dollar amounts', () => {
+  it('renders prices as text but keeps real math', async () => {
+    const view = render(<MarkstreamMarkdown text={'价格 $2 / $10，缓存 **$0.10**（Astra $1.00）'} streaming={false} />)
+    await new Promise(resolve => setTimeout(resolve, 200))
+    expect(view.container.querySelector('.katex')).toBeNull()
+    expect(view.container.textContent).toContain('$2 / $10')
+    expect(view.container.querySelector('strong')?.textContent).toBe('$0.10')
+    view.unmount()
+    const math = render(<MarkstreamMarkdown text={'面积 $r^2$'} streaming={false} />)
+    await new Promise(resolve => setTimeout(resolve, 200))
+    expect(math.container.querySelector('.katex')).not.toBeNull()
+  })
+})

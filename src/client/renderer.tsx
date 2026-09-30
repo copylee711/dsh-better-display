@@ -8,6 +8,7 @@ import * as primitives from '@deepseek-ai/dsh-client-ui-primitives'
 import { DisclosureRow, JsonBlock, MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MarkdownFileMentions } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { AssistantChatData, ChatNodeViewProps, TurnTailOwnerProps } from '@deepseek-ai/dsh-client-ui-chat/client'
+import { escapeCurrencyDollars } from './dollars.ts'
 import { CODE_THEMES, CODE_THEME_DARK, CODE_THEME_LIGHT, SHIKI_LANGUAGES } from './shiki.ts'
 import { citationLabel, extractCitations, hostOf, safeHttpUrl } from './citations.ts'
 import type { Citation } from './citations.ts'
@@ -461,13 +462,14 @@ export const MarkstreamMarkdown = memo(function MarkstreamMarkdown({ text, strea
   fileMentions?: MarkdownFileMentions | undefined
 }) {
   const isDark = useDshIsDark()
+  const content = useMemo(() => escapeCurrencyDollars(text), [text])
   const codeBlockProps = useMemo(() => ({
     fileMentions: streaming ? undefined : fileMentions,
   }), [fileMentions, streaming])
   return (
     <div className="dsh-better-display__markdown" data-markdown-renderer="markstream-react">
       <MarkdownRender
-        content={text}
+        content={content}
         final={!streaming}
         isDark={isDark}
         customId={CUSTOM_COMPONENT_SCOPE}
