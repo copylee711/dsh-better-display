@@ -794,6 +794,12 @@
   overflow-clip-margin: 4px;
 }
 
+/* One compositing layer per streamed fragment (Markstream sets will-change on each fading delta)
+ * piles up layers while text streams; opacity animations do not need the hint. */
+.dsh-better-display__markdown .text-node-stream-delta {
+  will-change: auto;
+}
+
 /* Show a formula as it is being written, like the surrounding text, instead of Markstream's
  * spinner: the spinner is taller than the line, so every inline formula at the end of the stream
  * bumped the line (and the page) by a few pixels and back. */
@@ -803,4 +809,31 @@
 
 .dsh-better-display__markdown .math-inline__loading {
   display: none;
+}
+
+/* Markstream marks its root `content-visibility: auto` (skip painting when off-screen). While a
+ * reply streams, its height and the scroll position change every frame, and Chromium's
+ * relevance check can lag a frame behind: the whole reply was then skipped for one frame while
+ * keeping its size, i.e. the answer flashed blank. A chat answer is on screen while it matters,
+ * so always paint it. */
+.dsh-better-display__markdown .markdown-renderer {
+  content-visibility: visible;
+  contain-intrinsic-size: none;
+}
+
+/* Blocks that appear while a reply streams fade in (Markstream's own per-fragment fade mode made
+ * the whole reply skip a paint now and then, i.e. flash blank). Only newly mounted blocks animate;
+ * settled replies and replies opened from history render without motion. */
+@keyframes dsh-better-display-enter {
+  from { opacity: 0; }
+}
+
+.dsh-better-display__root[data-streaming] .markstream-react > .node-slot {
+  animation: dsh-better-display-enter 260ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dsh-better-display__root[data-streaming] .markstream-react > .node-slot {
+    animation: none;
+  }
 }

@@ -10,6 +10,8 @@ const checks = {
   'GitHub code themes': bundle.includes('github-light') && bundle.includes('github-dark-default'),
   'code block shell styles': bundle.includes('.dsh-better-display__code-header'),
   'non-italic blockquotes': bundle.includes('.dsh-better-display__markdown .blockquote-node'),
+  'block enter fade (not Markstream fade mode)': bundle.includes('dsh-better-display-enter'),
+  'markdown root always painted': bundle.includes('.dsh-better-display__markdown .markdown-renderer'),
   'ModuleLoader banner': bundle.startsWith('window.__ModuleLoader__.load('),
 }
 const failed = Object.entries(checks).filter(([, ok]) => !ok).map(([name]) => name)
