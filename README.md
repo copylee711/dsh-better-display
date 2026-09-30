@@ -172,25 +172,6 @@ pnpm pack --dry-run
 - `src/client/styles.css`：基于 DSH `--dsw-*` token 的样式，自动适配深浅色
 - `tests/`：流式渲染、安全策略、引用 / 图片 / 来源面板、prompt section 测试
 
-### 发布
-
-首次发布需手动完成（npm 的 Trusted Publishing 只能在包已存在后配置）：
-
-```sh
-npm login
-pnpm install && pnpm run check
-npm publish --access public   # prepare 脚本会自动构建 lib/
-```
-
-然后在 npmjs.com → 包设置 → Trusted Publisher → GitHub Actions 填写 `copylee711` / `dsh-better-display` / `publish.yml`（或在仓库 Secrets 中添加 `NPM_TOKEN`）。之后每次发布只需：
-
-```sh
-# 修改 package.json 的 version 并推到 main
-git tag v0.1.1 && git push origin v0.1.1
-```
-
-`publish.yml` 会校验 tag 与版本一致、运行测试与构建并发布；已发布过的版本自动跳过。也可以在 Actions 页面手动运行。
-
 ## 兼容性
 
 - DeepSeek Harness Web `0.1.0-rc.5` 及以上（需要 priority-based slot shadowing）
