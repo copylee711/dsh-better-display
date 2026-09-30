@@ -1,0 +1,11 @@
+# dsh-better-display — illustrated assistant replies + citation chips.
+# citations:    ask the model to cite web facts as [n](url); rendered as superscript chips + a sources panel
+# inlineImages: ask the model to embed relevant pictures from image/web search as ![caption](url "credit")
+# maxImages:    upper bound of pictures per reply suggested to the model
+- insert:
+    - id: better-display
+      name: "@copylee/dsh-better-display"
+      config:
+        citations: true
+        inlineImages: true
+        maxImages: 4

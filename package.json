@@ -1,0 +1,118 @@
+{
+  "name": "@copylee/dsh-better-display",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness Web plugin: illustrated assistant replies with GPT-style citation chips and a sources panel for web-search results, on top of streaming markstream-react Markdown.",
+  "packageManager": "pnpm@10.33.3",
+  "author": "copylee711",
+  "homepage": "https://github.com/copylee711/dsh-better-display#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/copylee711/dsh-better-display.git"
+  },
+  "bugs": {
+    "url": "https://github.com/copylee711/dsh-better-display/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "type": "module",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/index.d.ts",
+    "lib/client.js",
+    "lib/client.js.map",
+    "cordis.patch.yml",
+    "README.md",
+    "README_EN.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "check": "tsc --noEmit && vitest run",
+    "prepare": "pnpm run build"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-primitives",
+        "@deepseek-ai/dsh-client-ui-attachment"
+      ]
+    }
+  },
+  "keywords": [
+    "deepseek",
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "ai-chat",
+    "llm",
+    "citations",
+    "sources",
+    "footnotes",
+    "web-search",
+    "images",
+    "markdown",
+    "markstream-react",
+    "streaming-markdown",
+    "dsh-free-search"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/schemastery": "^3.18.4",
+    "@shikijs/langs": "4.4.3",
+    "@shikijs/themes": "4.4.3",
+    "katex": "^0.18.4",
+    "markstream-react": "0.0.55",
+    "mermaid": "11.16.1",
+    "shiki": "4.4.3",
+    "stream-markdown": "0.0.16"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-client-locale": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-runtime": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-attachment": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-conversation": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-primitives": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-slots": "0.1.0-rc.6",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "~18.3.0",
+    "jsdom": "^26.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "stream-markdown-parser": "1.1.4",
+    "tsdown": "^0.22.14",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4",
+    "@deepseek-ai/dsh-client-locale": ">=0.1.0-rc.5",
+    "@deepseek-ai/dsh-client-runtime": ">=0.1.0-rc.5",
+    "@deepseek-ai/dsh-client-ui-attachment": ">=0.1.0-rc.5",
+    "@deepseek-ai/dsh-client-ui-conversation": ">=0.1.0-rc.5",
+    "@deepseek-ai/dsh-client-ui-primitives": ">=0.1.0-rc.5",
+    "@deepseek-ai/dsh-client-ui-slots": ">=0.1.0-rc.5",
+    "react": ">=18",
+    "react-dom": ">=18"
+  }
+}
