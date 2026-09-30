@@ -782,3 +782,25 @@
 .dsh-better-display__markdown .table-node__loading {
   display: none;
 }
+
+/* ---- Streaming motion ---- */
+
+/* The reply's height eases towards its content (see SmoothHeight), so DSH's stick-to-bottom
+ * scrolling glides instead of jumping a whole line at a time. Clip only vertically: wide
+ * formulas, tables and code keep their own horizontal scrolling. */
+.dsh-better-display__grow[data-animating] {
+  overflow-x: visible;
+  overflow-y: clip;
+  overflow-clip-margin: 4px;
+}
+
+/* Show a formula as it is being written, like the surrounding text, instead of Markstream's
+ * spinner: the spinner is taller than the line, so every inline formula at the end of the stream
+ * bumped the line (and the page) by a few pixels and back. */
+.dsh-better-display__markdown .math-inline--hidden {
+  visibility: visible;
+}
+
+.dsh-better-display__markdown .math-inline__loading {
+  display: none;
+}

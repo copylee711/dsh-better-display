@@ -1,4 +1,4 @@
-import { Component, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Component, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { ComponentType, ReactNode } from 'react'
 import MarkdownRender, { MarkdownCodeBlockNode } from 'markstream-react'
@@ -611,6 +611,69 @@ type AssistantBlock = AssistantChatData['blocks'][number]
 /** Subset of the owner's gallery renderer this view uses. */
 type RenderMessageImages = (owner: { images: readonly { attachment: unknown }[], align: 'start' | 'end' }) => ReactNode
 
+/** How long the body keeps easing its height after a reply settles (sources panel, final flush). */
+const SETTLE_GRACE_MS = 600
+/** Time constant of the height glide; ~95% of a new line is revealed after 3x this. */
+const GLIDE_MS = 70
+/** Speed limit of the glide, so a whole formula or table landing at once still slides in. */
+const GLIDE_MAX_PX_PER_MS = 0.9
+
+/**
+ * Grow the reply smoothly while it streams. DSH keeps the conversation pinned to the bottom by
+ * jumping `scrollTop` whenever the column resizes, so every new line of text scrolled the page by
+ * a whole line in one frame. Here the outer box follows the content height through a short CSS
+ * height glide instead: the column then grows a little every frame, DSH follows it every
+ * frame, and scrolling reads as one continuous glide (new lines are revealed from below, like
+ * claude.ai). Outside streaming the box is plain `height: auto`.
+ */
+export function SmoothHeight({ active, children }: { active: boolean, children: ReactNode }) {
+  const outer = useRef<HTMLDivElement>(null)
+  const inner = useRef<HTMLDivElement>(null)
+  const [animating, setAnimating] = useState(active)
+  useEffect(() => {
+    if (active) {
+      setAnimating(true)
+      return undefined
+    }
+    const timer = setTimeout(() => { setAnimating(false) }, SETTLE_GRACE_MS)
+    return () => { clearTimeout(timer) }
+  }, [active])
+  useLayoutEffect(() => {
+    const box = outer.current
+    const content = inner.current
+    if (!animating || box === null || content === null || typeof requestAnimationFrame === 'undefined') return undefined
+    if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined
+    // Ease towards the content height every frame (exponential approach, time constant GLIDE_MS).
+    // A new target simply bends the ongoing motion; a CSS transition would restart and stall a
+    // frame each time a line is added.
+    let shown = content.offsetHeight
+    let last = performance.now()
+    let frame = 0
+    box.style.height = `${shown}px`
+    const step = (now: number) => {
+      const target = content.offsetHeight
+      const dt = Math.min(64, now - last)
+      last = now
+      const gap = target - shown
+      const eased = gap * (1 - Math.exp(-dt / GLIDE_MS))
+      const capped = Math.sign(eased) * Math.min(Math.abs(eased), GLIDE_MAX_PX_PER_MS * dt)
+      shown = Math.abs(gap) < 0.5 ? target : shown + capped
+      box.style.height = `${shown}px`
+      frame = requestAnimationFrame(step)
+    }
+    frame = requestAnimationFrame(step)
+    return () => {
+      cancelAnimationFrame(frame)
+      box.style.height = ''
+    }
+  }, [animating])
+  return (
+    <div ref={outer} className="dsh-better-display__grow" data-animating={animating || undefined}>
+      <div ref={inner} className="dsh-better-display__grow-content">{children}</div>
+    </div>
+  )
+}
+
 export function BetterAssistantMarkdown({
   blocks, streaming, interrupted, groupPart, reasoningHidden = false, revealProcess, renderMessageImages, mentions, t,
 }: {
@@ -693,11 +756,13 @@ export function BetterAssistantMarkdown({
     || !blocks.some(block => block !== undefined && block.kind !== 'reasoning' && block.kind !== 'tool-call'))
   return (
     <div className="dsh-better-display__root" data-streaming={streaming || undefined}>
-      <div className="dsh-better-display__body">
-        {rendered}
-        {showStopped && <span className="dsh-better-display__stopped">{tr(t, 'message.stopped', 'Stopped')}</span>}
-        <SourcesPanel sources={sources} />
-      </div>
+      <SmoothHeight active={streaming}>
+        <div className="dsh-better-display__body">
+          {rendered}
+          {showStopped && <span className="dsh-better-display__stopped">{tr(t, 'message.stopped', 'Stopped')}</span>}
+          <SourcesPanel sources={sources} />
+        </div>
+      </SmoothHeight>
     </div>
   )
 }
