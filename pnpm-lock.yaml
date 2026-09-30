@@ -18,7 +18,7 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
       katex:
-        specifier: ^0.18.4
+        specifier: 0.18.9
         version: 0.18.9
       markstream-react:
         specifier: 0.0.55

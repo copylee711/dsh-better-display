@@ -19,6 +19,18 @@ const CLIENT_EXTERNALS = [
 const CSS_PREFIX = '\0dsh-better-display-css:'
 const CSS_SUFFIX = '.mjs'
 const STREAM_MONACO_STUB = '\0dsh-better-display-stream-monaco-stub'
+const FONT_FACE_SRC = /src:url\((fonts\/[^)]+\.woff2)\) format\("woff2"\)[^;}]*/g
+
+/**
+ * Embed a stylesheet's woff2 fonts as data URIs (dropping woff/ttf fallbacks): the CSS is injected
+ * as a <style> tag, so relative font URLs would resolve against the DSH page instead of the package.
+ */
+async function inlineFonts(css: string, cssPath: string): Promise<string> {
+  const files = [...new Set([...css.matchAll(FONT_FACE_SRC)].map(match => match[1] as string))]
+  const encoded = new Map(await Promise.all(files.map(async file =>
+    [file, (await readFile(resolve(dirname(cssPath), file))).toString('base64')] as const)))
+  return css.replace(FONT_FACE_SRC, (_all, file: string) => `src:url(data:font/woff2;base64,${encoded.get(file)}) format("woff2")`)
+}
 
 export default defineConfig([
   {
@@ -70,7 +82,7 @@ export default defineConfig([
       async load(id) {
         if (!id.startsWith(CSS_PREFIX)) return null
         const path = id.slice(CSS_PREFIX.length, -CSS_SUFFIX.length)
-        const css = await readFile(path, 'utf8')
+        const css = await inlineFonts(await readFile(path, 'utf8'), path)
         const tagId = `dsh-better-display/${basename(path)}`
         return [
           `const tagId = ${JSON.stringify(tagId)};`,

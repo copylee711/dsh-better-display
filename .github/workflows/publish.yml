@@ -74,6 +74,8 @@ jobs:
         if: steps.exists.outputs.published == 'false'
       - run: pnpm run build
         if: steps.exists.outputs.published == 'false'
+      - run: pnpm run check:bundle
+        if: steps.exists.outputs.published == 'false'
 
       - name: Publish
         if: steps.exists.outputs.published == 'false'

@@ -1,6 +1,6 @@
 {
   "name": "@copylee/dsh-better-display",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "DeepSeek Harness Web plugin: illustrated assistant replies with GPT-style citation chips and a sources panel for web-search results, on top of streaming markstream-react Markdown.",
   "packageManager": "pnpm@10.33.3",
   "author": "copylee711",
@@ -41,7 +41,8 @@
   "scripts": {
     "build": "tsdown",
     "check": "tsc --noEmit && vitest run",
-    "prepare": "pnpm run build"
+    "prepare": "pnpm run build",
+    "check:bundle": "node scripts/check-bundle.mjs"
   },
   "dsh": {
     "bundle": {
@@ -82,7 +83,7 @@
     "@deepseek-ai/schemastery": "^3.18.4",
     "@shikijs/langs": "4.4.3",
     "@shikijs/themes": "4.4.3",
-    "katex": "^0.18.4",
+    "katex": "0.18.9",
     "markstream-react": "0.0.55",
     "mermaid": "11.16.1",
     "shiki": "4.4.3",

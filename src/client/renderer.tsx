@@ -270,13 +270,19 @@ export function DshInlineCodeNode({ node, ctx }: NodeComponentProps<InlineCodeNo
   return <code>{node.code}</code>
 }
 
-/** Use Markstream's worker-free Shiki renderer for fenced code blocks. */
+/**
+ * Use Markstream's worker-free Shiki renderer for fenced code blocks. When a streamed reply
+ * settles the block remounts in non-streaming mode, so the final code is highlighted in one
+ * full pass instead of relying on the last incremental update.
+ */
 export function DshCodeBlockNode({ node, ctx }: NodeComponentProps<CodeBlockNode>) {
+  const streaming = ctx?.codeBlockStream ?? true
   return (
     <MarkdownCodeBlockNode
+      key={streaming ? 'streaming' : 'settled'}
       node={node}
       loading={node.loading}
-      stream={ctx?.codeBlockStream ?? true}
+      stream={streaming}
       isDark={ctx?.isDark ?? false}
       langs={SHIKI_LANGUAGES}
       onCopy={ctx?.events.onCopy}

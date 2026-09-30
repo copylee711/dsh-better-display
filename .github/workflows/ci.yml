@@ -25,4 +25,5 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run check
       - run: pnpm run build
+      - run: pnpm run check:bundle
       - run: pnpm pack --dry-run

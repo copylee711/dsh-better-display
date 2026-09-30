@@ -3,6 +3,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { removeCustomComponents, setCustomComponents } from 'markstream-react'
 import 'markstream-react/index.css'
+// DSH ships KaTeX 0.16 styles; markstream renders with the bundled KaTeX 0.18, whose class names differ.
+import 'katex/dist/katex.min.css'
 import './styles.css'
 import {
   BetterAssistantNodeView,

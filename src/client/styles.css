@@ -490,3 +490,48 @@
 .dsh-better-display__setting-note[data-state='failed'] {
   color: var(--dsw-alias-state-error-primary);
 }
+
+/* ---- Tables: markstream ships Tailwind utility classes only, so style them with DSH tokens ---- */
+
+.dsh-better-display__markdown .table-node-wrapper {
+  max-width: 100%;
+  margin: 16px 0;
+  overflow-x: auto;
+}
+
+.dsh-better-display__markdown table {
+  width: auto;
+  min-width: 50%;
+  margin: 0;
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.dsh-better-display__markdown :is(th, td) {
+  border: 0;
+  border-bottom: 1px solid var(--dsw-alias-border-l1, rgb(127 127 127 / 0.18));
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.dsh-better-display__markdown th {
+  border-bottom-color: var(--dsw-alias-border-l2, rgb(127 127 127 / 0.32));
+  color: var(--dsw-alias-label-primary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dsh-better-display__markdown tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.dsh-better-display__markdown :is(th, td)[align='center'] {
+  text-align: center;
+}
+
+.dsh-better-display__markdown :is(th, td)[align='right'] {
+  text-align: right;
+}
