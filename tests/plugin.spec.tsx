@@ -15,6 +15,7 @@ function mountPlugin() {
   const disposers: Array<() => void> = []
   const ctx = {
     slots,
+    inject: vi.fn(),
     effect: vi.fn((setup: () => void | (() => void)) => {
       const dispose = setup()
       if (typeof dispose === 'function') disposers.push(dispose)

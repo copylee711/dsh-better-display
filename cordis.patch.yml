@@ -1,11 +1,14 @@
 # dsh-better-display — illustrated assistant replies + citation chips.
+# These options are also editable in DSH: Plugins page -> dsh-better-display (changes apply immediately).
 # citations:    ask the model to cite web facts as [n](url); rendered as superscript chips + a sources panel
 # inlineImages: ask the model to embed relevant pictures from image/web search as ![caption](url "credit")
-# maxImages:    upper bound of pictures per reply suggested to the model
+# imageCount:   auto (the model decides how many pictures an answer needs) | limit (at most maxImages)
+# maxImages:    per-reply cap in limit mode (1-20)
 - insert:
     - id: better-display
       name: "@copylee/dsh-better-display"
       config:
         citations: true
         inlineImages: true
-        maxImages: 4
+        imageCount: auto
+        maxImages: 8

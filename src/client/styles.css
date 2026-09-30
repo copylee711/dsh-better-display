@@ -416,3 +416,77 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ---- Settings page (Plugins → dsh-better-display → configure) ---- */
+
+.dsh-better-display__settings {
+  display: flex;
+  flex-direction: column;
+}
+
+.dsh-better-display__setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l1, rgb(127 127 127 / 0.2));
+  padding: 14px 0;
+}
+
+.dsh-better-display__setting:last-of-type {
+  border-bottom: 0;
+}
+
+.dsh-better-display__setting[data-disabled] .dsh-better-display__setting-text {
+  opacity: 0.55;
+}
+
+.dsh-better-display__setting-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dsh-better-display__setting-label {
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.dsh-better-display__setting-hint {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-better-display__setting-control {
+  flex: none;
+}
+
+.dsh-better-display__setting-number {
+  box-sizing: border-box;
+  width: 72px;
+  height: 32px;
+  border: 0.5px solid var(--dsw-alias-border-l2, rgb(127 127 127 / 0.3));
+  border-radius: var(--dsw-radius-md, 8px);
+  padding: 0 10px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+}
+
+.dsh-better-display__setting-number:disabled {
+  opacity: 0.5;
+}
+
+.dsh-better-display__setting-note {
+  padding: 8px 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+}
+
+.dsh-better-display__setting-note[data-state='failed'] {
+  color: var(--dsw-alias-state-error-primary);
+}

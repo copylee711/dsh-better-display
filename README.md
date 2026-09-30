@@ -136,16 +136,16 @@ dsh plugin --profile web remove @copylee/dsh-better-display
 
 ## 配置
 
-在 profile 的 `cordis.patch.yml` 中修改 `better-display` 条目：
+在 DSH 左侧栏「插件」页打开 **@copylee/dsh-better-display**，点组件行的配置按钮即可调整，保存后下一条回答就生效，不用重启：
 
-| 字段 | 默认 | 说明 |
+| 选项 | 默认 | 说明 |
 |---|---|---|
-| `citations` | `true` | 要求模型以 `[n](url)` 标注联网来源 |
-| `inlineImages` | `true` | 要求模型在合适时把搜到的图片嵌入正文 |
-| `maxImages` | `4` | 每条回答建议的最多图片数（1–12） |
-| `sectionOrder` | `600` | system prompt section 的排序 |
+| 引用角标 `citations` | 开 | 让模型用 `[n](url)` 标注联网来源，显示为上标角标并汇总「来源」面板 |
+| 正文配图 `inlineImages` | 开 | 让模型把搜到的相关图片嵌入回答 |
+| 配图数量 `imageCount` | 由 AI 决定 | `auto`：模型按内容需要决定配几张（纯文字/代码类不配，外观对比、地点介绍等多配）；`limit`：限制每条回答最多张数 |
+| 最多张数 `maxImages` | `8` | 1–20，仅在「限制最多」时生效 |
 
-两个开关都关闭时不注入任何 prompt，仅保留增强渲染（已有的 `[1](url)` 链接和图片仍按新样式显示）。
+同样的字段也可以直接写在 profile 的 `cordis.patch.yml` 的 `better-display` 条目里（另有高级项 `sectionOrder`，默认 `600`，控制 system prompt 段落的排序）。两个开关都关闭时不注入任何 prompt，只保留增强渲染（已有的 `[1](url)` 链接和图片仍按新样式显示）。
 
 ## 安全
 
@@ -165,10 +165,12 @@ pnpm pack --dry-run
 
 主要文件：
 
-- `src/index.ts`：宿主端，注册「引用 / 配图」system prompt section
+- `src/index.ts`：宿主端，注册「引用 / 配图」system prompt section，并在设置变更时即时刷新
 - `src/client/index.ts`：注册 Markstream 组件与 assistant slot 覆盖
 - `src/client/renderer.tsx`：assistant 渲染、引用角标、图片 / 图集 / 大图预览、来源面板
 - `src/client/citations.ts`：引用解析（纯函数）
+- `src/client/settings.tsx`：插件页里的设置表单（写回 profile 配置）
+- `src/client/workspace.ts`：工作区图片路径解析（与 DSH 内置规则一致）
 - `src/client/styles.css`：基于 DSH `--dsw-*` token 的样式，自动适配深浅色
 - `tests/`：流式渲染、安全策略、引用 / 图片 / 来源面板、prompt section 测试
 

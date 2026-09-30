@@ -91,16 +91,16 @@ Remove it with `dsh plugin --profile web remove @copylee/dsh-better-display`. Th
 
 ## Configuration
 
-Edit the `better-display` entry in the profile's `cordis.patch.yml`:
+Open **@copylee/dsh-better-display** on DSH's Plugins page and use the row's configure button. Changes apply from the next answer, no restart needed:
 
-| Field | Default | Meaning |
+| Option | Default | Meaning |
 |---|---|---|
-| `citations` | `true` | Ask the model to cite web sources as `[n](url)` |
-| `inlineImages` | `true` | Ask the model to embed relevant pictures |
-| `maxImages` | `4` | Suggested maximum pictures per reply (1–12) |
-| `sectionOrder` | `600` | System-prompt section order |
+| Citation chips `citations` | on | The model cites web sources as `[n](url)`, shown as superscript chips plus a sources panel |
+| Inline pictures `inlineImages` | on | The model embeds relevant pictures in its answer |
+| Picture count `imageCount` | Let AI decide | `auto`: the model decides how many pictures an answer needs (none for text/code, more for visual comparisons or places); `limit`: cap per reply |
+| Maximum `maxImages` | `8` | 1–20, only used with `limit` |
 
-With both switches off, no prompt is injected; the renderer still styles any `[1](url)` links and images that appear.
+The same fields can also be set in the `better-display` entry of the profile's `cordis.patch.yml` (plus the advanced `sectionOrder`, default `600`, for the system-prompt section order). With both switches off no prompt is injected; the renderer still styles any `[1](url)` links and images.
 
 ## Security
 
