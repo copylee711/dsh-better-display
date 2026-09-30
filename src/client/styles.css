@@ -502,7 +502,7 @@
 .dsh-better-display__markdown table {
   width: auto;
   min-width: 50%;
-  margin: 0;
+  margin: 0 auto;
   border-collapse: collapse;
   border-spacing: 0;
   font-size: 14px;
@@ -534,4 +534,129 @@
 
 .dsh-better-display__markdown :is(th, td)[align='right'] {
   text-align: right;
+}
+
+/* ---- Blockquotes: Markstream sets italic + medium weight, which CJK fonts can only fake by slanting ---- */
+
+.dsh-better-display__markdown .blockquote-node {
+  margin: 12px 0;
+  border-left: 3px solid var(--dsw-alias-border-l2, rgb(127 127 127 / 0.32));
+  padding: 0 0 0 14px;
+  color: var(--dsw-alias-label-secondary, inherit);
+  font-style: normal;
+  font-weight: 400;
+}
+
+/* ---- Code blocks: ChatGPT-style shell around Markstream's Shiki body ---- */
+
+.dsh-better-display__code {
+  --dsh-bd-code-bg: #f7f7f8;
+  --dsh-bd-code-fg: #1f2328;
+  --dsh-bd-code-muted: #5d5d66;
+  --dsh-bd-code-hover: rgb(0 0 0 / 0.06);
+  margin: 16px 0;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--dsh-bd-code-bg);
+  color: var(--dsh-bd-code-fg);
+}
+
+.dsh-better-display__code[data-theme='dark'] {
+  --dsh-bd-code-bg: #1e1e20;
+  --dsh-bd-code-fg: #e6edf3;
+  --dsh-bd-code-muted: #a1a1aa;
+  --dsh-bd-code-hover: rgb(255 255 255 / 0.08);
+}
+
+.dsh-better-display__code-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 8px 0 16px;
+  color: var(--dsh-bd-code-muted);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  user-select: none;
+}
+
+.dsh-better-display__code[data-collapsed] .dsh-better-display__code-header {
+  padding-bottom: 6px;
+}
+
+.dsh-better-display__code-lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.dsh-better-display__code-folded {
+  color: var(--dsh-bd-code-muted);
+  opacity: 0.8;
+}
+
+.dsh-better-display__code-actions {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.dsh-better-display__code-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0;
+  background: transparent;
+  color: var(--dsh-bd-code-muted);
+  cursor: pointer;
+}
+
+.dsh-better-display__code-button:hover,
+.dsh-better-display__code-button:focus-visible {
+  outline: none;
+  background: var(--dsh-bd-code-hover);
+  color: var(--dsh-bd-code-fg);
+}
+
+/* Markstream's container becomes a bare body: no border, shadow, cap or own background. */
+.dsh-better-display__code .code-block-container {
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  content-visibility: visible;
+  contain: none;
+  --vscode-editor-background: transparent;
+  --markstream-code-fallback-bg: transparent;
+  --markstream-code-fallback-fg: var(--dsh-bd-code-fg);
+}
+
+.dsh-better-display__code .code-block-content {
+  max-height: none !important;
+  overflow-y: visible !important;
+  padding: 8px 0 16px;
+  font-family: var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: 14px !important;
+  line-height: 1.6;
+}
+
+.dsh-better-display__code .code-block-content :is(pre, .shiki, .shiki-fallback) {
+  margin: 0;
+  padding: 0 16px !important;
+  background: transparent !important;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.dsh-better-display__code .code-block-content code {
+  background: transparent;
+  font-family: inherit;
 }

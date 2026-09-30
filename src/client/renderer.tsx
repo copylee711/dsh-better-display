@@ -8,7 +8,7 @@ import * as primitives from '@deepseek-ai/dsh-client-ui-primitives'
 import { DisclosureRow, JsonBlock, MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MarkdownFileMentions } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { AssistantChatData, ChatNodeViewProps, TurnTailOwnerProps } from '@deepseek-ai/dsh-client-ui-chat/client'
-import { SHIKI_LANGUAGES } from './shiki.ts'
+import { CODE_THEMES, CODE_THEME_DARK, CODE_THEME_LIGHT, SHIKI_LANGUAGES } from './shiki.ts'
 import { citationLabel, extractCitations, hostOf, safeHttpUrl } from './citations.ts'
 import type { Citation } from './citations.ts'
 import { WorkspaceProvider, localPath, useWorkspace, workspaceFileUrl } from './workspace.ts'
@@ -270,23 +270,134 @@ export function DshInlineCodeNode({ node, ctx }: NodeComponentProps<InlineCodeNo
   return <code>{node.code}</code>
 }
 
+/** Display names for fenced-code languages; anything else is shown with a capital first letter. */
+const LANGUAGE_NAMES: Record<string, string> = {
+  c: 'C', cpp: 'C++', 'c++': 'C++', cc: 'C++', cxx: 'C++', h: 'C', hpp: 'C++', cs: 'C#', csharp: 'C#',
+  js: 'JavaScript', javascript: 'JavaScript', mjs: 'JavaScript', cjs: 'JavaScript', jsx: 'JSX',
+  ts: 'TypeScript', typescript: 'TypeScript', tsx: 'TSX', py: 'Python', python: 'Python',
+  rb: 'Ruby', rs: 'Rust', go: 'Go', golang: 'Go', kt: 'Kotlin', java: 'Java', php: 'PHP', sql: 'SQL',
+  sh: 'Bash', bash: 'Bash', zsh: 'Zsh', shell: 'Shell', shellscript: 'Shell', console: 'Shell',
+  ps1: 'PowerShell', powershell: 'PowerShell', html: 'HTML', xml: 'XML', svg: 'SVG', css: 'CSS', scss: 'SCSS',
+  json: 'JSON', jsonc: 'JSON', yaml: 'YAML', yml: 'YAML', toml: 'TOML', md: 'Markdown', markdown: 'Markdown',
+  dockerfile: 'Dockerfile', objc: 'Objective-C', 'objective-c': 'Objective-C', vue: 'Vue', svelte: 'Svelte',
+  text: '', txt: '', plaintext: '', plain: '',
+}
+
 /**
- * Use Markstream's worker-free Shiki renderer for fenced code blocks. When a streamed reply
- * settles the block remounts in non-streaming mode, so the final code is highlighted in one
- * full pass instead of relying on the last incremental update.
+ * Header label for a fenced block's info string (`cpp`, `c++ title=x`, …).
+ * @param language - raw language from the parser.
+ * @returns the display name, or '' for plain text / no language.
+ */
+export function languageLabel(language: string | undefined): string {
+  const id = (language ?? '').trim().split(/[\s{:]/, 1)[0]?.toLowerCase() ?? ''
+  if (id === '') return ''
+  const known = LANGUAGE_NAMES[id]
+  return known ?? id.charAt(0).toUpperCase() + id.slice(1)
+}
+
+function codeLabels() {
+  const lang = typeof document === 'undefined' ? '' : document.documentElement.lang || navigator.language
+  return lang.toLowerCase().startsWith('zh')
+    ? { code: '代码', copy: '复制', copied: '已复制', collapse: '折叠', expand: '展开', lines: (n: number) => `已折叠 · ${n} 行` }
+    : { code: 'Code', copy: 'Copy', copied: 'Copied', collapse: 'Collapse', expand: 'Expand', lines: (n: number) => `Collapsed · ${n} line${n === 1 ? '' : 's'}` }
+}
+
+function CodeIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5.5 4.5 2 8l3.5 3.5M10.5 4.5 14 8l-3.5 3.5M9 3 7 13" />
+    </svg>
+  )
+}
+
+function CopyIcon({ done }: { done: boolean }) {
+  return done
+    ? <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" /></svg>
+    : <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" /><path d="M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5" /></svg>
+}
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ transform: open ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 120ms ease' }}>
+      <path d="m4 6 4 4 4-4" />
+    </svg>
+  )
+}
+
+/**
+ * ChatGPT-style fenced code block: our own header (language, collapse, copy) around Markstream's
+ * worker-free Shiki body. Collapsing unmounts the body and expanding mounts a fresh one, which
+ * highlights in one full pass (Markstream's own collapse toggle left an empty body behind, because
+ * its streaming renderer keeps writing into the unmounted element). When a streamed reply settles
+ * the body also remounts in non-streaming mode for the same full pass.
  */
 export function DshCodeBlockNode({ node, ctx }: NodeComponentProps<CodeBlockNode>) {
   const streaming = ctx?.codeBlockStream ?? true
+  const [collapsed, setCollapsed] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const labels = codeLabels()
+  const label = languageLabel(node.language) || labels.code
+  const onCopy = ctx?.events.onCopy
+  useEffect(() => {
+    if (!copied) return undefined
+    const timer = setTimeout(() => { setCopied(false) }, 1500)
+    return () => { clearTimeout(timer) }
+  }, [copied])
+  const code = node.code.replace(/\n$/, '')
+  const copy = () => {
+    const done = () => { setCopied(true); onCopy?.(code) }
+    try {
+      void navigator.clipboard.writeText(code).then(done, () => {})
+    } catch { /* clipboard unavailable */ }
+  }
+  const lineCount = code.split('\n').length
   return (
-    <MarkdownCodeBlockNode
-      key={streaming ? 'streaming' : 'settled'}
-      node={node}
-      loading={node.loading}
-      stream={streaming}
-      isDark={ctx?.isDark ?? false}
-      langs={SHIKI_LANGUAGES}
-      onCopy={ctx?.events.onCopy}
-    />
+    <div className="dsh-better-display__code" data-collapsed={collapsed || undefined} data-theme={ctx?.isDark === true ? 'dark' : 'light'}>
+      <div className="dsh-better-display__code-header">
+        <span className="dsh-better-display__code-lang"><CodeIcon />{label}</span>
+        {collapsed && <span className="dsh-better-display__code-folded">{labels.lines(lineCount)}</span>}
+        <span className="dsh-better-display__code-actions">
+          <button
+            type="button"
+            className="dsh-better-display__code-button"
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? labels.expand : labels.collapse}
+            title={collapsed ? labels.expand : labels.collapse}
+            onClick={() => { setCollapsed(value => !value) }}
+          >
+            <ChevronIcon open={!collapsed} />
+          </button>
+          <button
+            type="button"
+            className="dsh-better-display__code-button"
+            aria-label={copied ? labels.copied : labels.copy}
+            title={copied ? labels.copied : labels.copy}
+            onClick={copy}
+          >
+            <CopyIcon done={copied} />
+          </button>
+        </span>
+      </div>
+      {!collapsed && (
+        <MarkdownCodeBlockNode
+          key={streaming ? 'streaming' : 'settled'}
+          node={node}
+          loading={node.loading}
+          stream={streaming}
+          isDark={ctx?.isDark ?? false}
+          langs={SHIKI_LANGUAGES}
+          themes={CODE_THEMES}
+          lightTheme={CODE_THEME_LIGHT}
+          darkTheme={CODE_THEME_DARK}
+          showHeader={false}
+          showCollapseButton={false}
+          showFontSizeButtons={false}
+          showExpandButton={false}
+          showPreviewButton={false}
+          enableFontSizeControl={false}
+        />
+      )}
+    </div>
   )
 }
 
