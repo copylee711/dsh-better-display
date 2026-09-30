@@ -660,3 +660,125 @@
   background: transparent;
   font-family: inherit;
 }
+
+/* ---- Math: claude.ai-like size and rhythm ----
+ * KaTeX defaults to 1.21em, which towers over 14px CJK body text; 1.1em keeps formulas legible
+ * without shouting. Inline math sits on the text baseline (Markstream centres it, which makes
+ * subscripts drift), and display math gets one compact margin instead of three stacked ones. */
+
+.dsh-better-display__markdown .katex {
+  font-size: 1.1em;
+}
+
+.dsh-better-display__markdown .math-inline {
+  vertical-align: baseline;
+}
+
+.dsh-better-display__markdown .math-block-node {
+  margin: 0.9em 0;
+}
+
+.dsh-better-display__markdown .math-block {
+  min-height: 0;
+  padding: 2px 0;
+}
+
+.dsh-better-display__markdown .katex-display {
+  margin: 0;
+  padding: 2px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Re-rendering a formula mid-stream must not dim it (Markstream fades to 30%). */
+.dsh-better-display__markdown .math-rendering {
+  opacity: 1;
+  transition: none;
+}
+
+/* ---- Typography rhythm modelled on claude.ai ----
+ * Markstream ships article-sized defaults (36px h1, 48px around every rule, 1.25em between
+ * paragraphs) that spread a chat answer thin. Scale headings to the body size and keep one
+ * consistent, compact vertical rhythm. */
+
+.dsh-better-display__markdown .paragraph-node {
+  margin: 0.75em 0;
+  line-height: 1.7;
+}
+
+.dsh-better-display__markdown li .paragraph-node {
+  margin: 0;
+}
+
+.dsh-better-display__markdown .heading-node {
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.dsh-better-display__markdown .heading-1 {
+  margin: 1.2em 0 0.5em;
+  font-size: 1.5em;
+  line-height: 1.35;
+}
+
+.dsh-better-display__markdown .heading-2 {
+  margin: 1.4em 0 0.5em;
+  font-size: 1.3em;
+  line-height: 1.4;
+}
+
+.dsh-better-display__markdown .heading-3 {
+  margin: 1.3em 0 0.4em;
+  font-size: 1.15em;
+  line-height: 1.45;
+}
+
+.dsh-better-display__markdown :is(.heading-4, .heading-5, .heading-6) {
+  margin: 1.2em 0 0.4em;
+  font-size: 1em;
+  line-height: 1.5;
+}
+
+.dsh-better-display__markdown .hr-node {
+  margin: 1.5em 0;
+  border: 0;
+  border-top: 1px solid var(--dsw-alias-border-l1, rgb(127 127 127 / 0.18));
+}
+
+/* A heading straight after a rule already has the rule's spacing above it. */
+.dsh-better-display__markdown .node-slot:has(> .node-content > .hr-node) + .node-slot .heading-node {
+  margin-top: 0;
+}
+
+.dsh-better-display__markdown :is(ul, ol) {
+  margin: 0.6em 0;
+  padding-left: 1.5em;
+}
+
+.dsh-better-display__markdown li {
+  margin: 0.3em 0;
+  line-height: 1.7;
+}
+
+.dsh-better-display__markdown li::marker {
+  color: var(--dsw-alias-label-tertiary, currentColor);
+}
+
+.dsh-better-display__markdown .table-node {
+  margin: 0 auto !important;
+}
+
+.dsh-better-display__markdown .table-node-wrapper {
+  margin: 1em 0;
+}
+
+/* Streamed tables fill in row by row, like the rest of the text, instead of hiding every cell
+ * behind a shimmer until the table is complete. */
+.dsh-better-display__markdown .table-node--loading tbody td > * {
+  visibility: visible;
+}
+
+.dsh-better-display__markdown .table-node--loading tbody td::after,
+.dsh-better-display__markdown .table-node__loading {
+  display: none;
+}

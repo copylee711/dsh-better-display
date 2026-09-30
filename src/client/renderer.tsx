@@ -455,6 +455,23 @@ export function useDshIsDark(): boolean {
   return dark
 }
 
+/**
+ * Pace streamed text like claude.ai: upstream arrives in bursts (a few dozen characters every
+ * ~100 ms), so reveal it from a buffer on every animation frame at an adaptive rate that stays a
+ * few hundred milliseconds behind the source and catches up when the backlog grows.
+ */
+const SMOOTH_STREAMING = Object.freeze({
+  minCharsPerSecond: 60,
+  maxCharsPerSecond: 1500,
+  targetLatencyMs: 300,
+  catchUpLatencyMs: 150,
+  catchUpThreshold: 400,
+  maxCommitFps: 60,
+  startDelayMs: 0,
+  maxCharsPerCommit: 24,
+  flushOnFinish: true,
+})
+
 /** Markstream wrapper configured for untrusted assistant output. */
 export const MarkstreamMarkdown = memo(function MarkstreamMarkdown({ text, streaming, fileMentions }: {
   text: string
@@ -462,7 +479,11 @@ export const MarkstreamMarkdown = memo(function MarkstreamMarkdown({ text, strea
   fileMentions?: MarkdownFileMentions | undefined
 }) {
   const isDark = useDshIsDark()
-  const content = useMemo(() => escapeCurrencyDollars(text), [text])
+  const content = useMemo(() => escapeCurrencyDollars(text, streaming), [text, streaming])
+  // Text already on hand when the view mounts (e.g. switching back to a running session) shows
+  // at once; only what arrives afterwards is paced.
+  const [paced, setPaced] = useState(false)
+  useEffect(() => { setPaced(true) }, [])
   const codeBlockProps = useMemo(() => ({
     fileMentions: streaming ? undefined : fileMentions,
   }), [fileMentions, streaming])
@@ -474,8 +495,9 @@ export const MarkstreamMarkdown = memo(function MarkstreamMarkdown({ text, strea
         isDark={isDark}
         customId={CUSTOM_COMPONENT_SCOPE}
         htmlPolicy="escape"
-        fade={false}
-        smoothStreaming={false}
+        fade={streaming && paced}
+        smoothStreaming={streaming && paced}
+        smoothStreamingOptions={SMOOTH_STREAMING}
         viewportPriority={false}
         codeBlockStream={streaming}
         codeBlockProps={codeBlockProps}

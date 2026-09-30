@@ -27,3 +27,31 @@ describe('escapeCurrencyDollars', () => {
     expect(esc('costs $5\n\nand x$')).toBe('costs \\$5\n\nand x\\$')
   })
 })
+
+describe('Markdown escapes inside math', () => {
+  it('turns \\* back into * in inline and display math', () => {
+    expect(esc('若最优点 $x^\\*$ 处')).toBe('若最优点 $x^*$ 处')
+    expect(esc('$$\\nabla f(x^\\*) = 0$$')).toBe('$$\\nabla f(x^*) = 0$$')
+    expect(esc('$$\nL(x^\\*,\\lambda^\\*)\n$$')).toBe('$$\nL(x^*,\\lambda^*)\n$$')
+  })
+  it('leaves \\* outside math and TeX line breaks alone', () => {
+    expect(esc('a \\* b')).toBe('a \\* b')
+    expect(esc('$$a \\\\* b$$')).toBe('$$a \\\\* b$$')
+  })
+})
+
+describe('streaming', () => {
+  it('only ever appends while a reply streams in', async () => {
+    const { default: answer } = await import('./fixtures/lagrange.md?raw')
+    const text = `${answer}\n\n价格 $2 / $10，缓存 **$0.10**（Astra $1.00），代码 \`echo $HOME\` 与 $x^\\*$。\n`
+    for (const step of [1, 7, 40]) {
+      let shown = ''
+      for (let end = step; end < text.length; end += step) {
+        const next = esc(text.slice(0, end), true)
+        expect(next.startsWith(shown), `step ${step} at ${end}`).toBe(true)
+        shown = next
+      }
+      expect(esc(text).startsWith(shown)).toBe(true)
+    }
+  })
+})

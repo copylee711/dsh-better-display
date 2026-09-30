@@ -41,11 +41,12 @@ describe('browser plugin', () => {
     plugin.dispose()
   })
 
-  it('renders streamed Markdown through markstream-react', () => {
+  it('renders streamed Markdown through markstream-react', async () => {
     const plugin = mountPlugin()
     const view = render(<MarkstreamMarkdown text={'# Stream\n\n**partial'} streaming />)
     expect(view.container.querySelector('[data-markdown-renderer="markstream-react"] .markstream-react')).not.toBeNull()
-    expect(screen.getByRole('heading', { name: 'Stream' })).toBeTruthy()
+    // streamed text is revealed at a smooth pace, frame by frame, in fading spans
+    await waitFor(() => { expect(view.container.querySelector('h1')?.textContent).toBe('Stream') })
     view.rerender(<MarkstreamMarkdown text={'# Stream\n\n**complete**'} streaming={false} />)
     expect(screen.getByText('complete').closest('strong')).not.toBeNull()
     plugin.dispose()
@@ -81,11 +82,11 @@ describe('browser plugin', () => {
         fileMentions={fileMentions}
       />,
     )
-    expect(view.container.querySelector('.code-block-container')).not.toBeNull()
+    await waitFor(() => { expect(view.container.textContent).toContain('After the first block') }, { timeout: 5000 })
+    await waitFor(() => { expect(view.container.querySelectorAll('.code-block-container')).toHaveLength(2) })
     expect(view.container.querySelector('.md-code-block')).toBeNull()
     expect(view.container.querySelector('.monaco-editor')).toBeNull()
     expect(view.container.querySelector('.node-placeholder')).toBeNull()
-    expect(screen.getByText('After the first block')).toBeTruthy()
     await waitFor(() => {
       expect(view.container.querySelector('.code-block-render .shiki')).not.toBeNull()
     }, { timeout: 5000 })
