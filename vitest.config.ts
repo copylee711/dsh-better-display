@@ -6,7 +6,7 @@ export default defineConfig({
       deps: {
         inline: [
           '@deepseek-ai/dsh-client-ui-primitives',
-          '@deepseek-ai/dsh-client-ui-attachment',
+          '@deepseek-ai/dsh-util-workspace-path',
         ],
       },
     },

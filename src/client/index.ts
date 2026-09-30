@@ -20,6 +20,12 @@ const CUSTOM_COMPONENT_SCOPE = 'dsh-better-display'
  */
 export const ASSISTANT_STEP_PRIORITY = -110
 
+/** The part of the host slot service this plugin uses (declared by different packages across DSH releases). */
+interface SlotService {
+  inject(name: string, setup: () => () => void): void
+  register(entry: { name: string, key: string, priority: number, locale: string }, component: unknown): () => void
+}
+
 /** Services required in the browser Cordis tree. */
 export const inject = ['slots']
 
@@ -38,10 +44,12 @@ export function apply(ctx: Context): void {
     return () => { removeCustomComponents(CUSTOM_COMPONENT_SCOPE) }
   }, 'dsh-better-display: markstream component policy')
 
-  ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
+  const { slots } = ctx as Context & { slots: SlotService }
+  slots.inject('conversation.chat.node', () => slots.register({
     name: 'conversation.chat.node',
     key: 'assistant-step',
     priority: ASSISTANT_STEP_PRIORITY,
-    locale: 'conversation',
+    // ui-chat owns assistant-step and its `chat` locale namespace (DSH 0.1.7+).
+    locale: 'chat',
   }, BetterAssistantNodeView))
 }

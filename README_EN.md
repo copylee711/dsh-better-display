@@ -28,7 +28,7 @@ With web-search plugins such as [`@copylee/dsh-free-search`](https://github.com/
 |---|---|
 | Citation chips | The model writes `[1](url "Title")`, which renders as a superscript chip. Hovering shows the favicon, domain and title; clicking opens the source in a new tab |
 | Sources panel | Once the reply settles, every cited page is collected at the end (deduplicated by URL, in order of first use) in an expandable card list |
-| Inline pictures | The model embeds relevant pictures from `image_search` / `page_images` / web results as `![caption](image-url "source · license")`, rendered with a caption |
+| Inline pictures | The model embeds relevant pictures from `image_search` / `page_images` / web results as `![caption](image-url "source · license")`, rendered with a caption; workspace paths saved by `save_images` work too |
 | Galleries | Two or more pictures on one line become a grid |
 | Lightbox | Click a picture to view it full-screen, open the original, and press Esc to close |
 | Broken-image fallback | A dead picture turns into a caption link instead of a broken icon |
@@ -117,6 +117,11 @@ pnpm run check   # tsc + vitest
 pnpm run build
 pnpm pack --dry-run
 ```
+
+## Compatibility
+
+- DeepSeek Harness Web `0.1.7` or later (verified on `0.2.0-rc.2`); use `0.1.0` for older releases
+- React 18+
 
 ## Credits
 
