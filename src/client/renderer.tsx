@@ -9,6 +9,7 @@ import { DisclosureRow, JsonBlock, MarkdownText } from '@deepseek-ai/dsh-client-
 import type { MarkdownFileMentions } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { AssistantChatData, ChatNodeViewProps, TurnTailOwnerProps } from '@deepseek-ai/dsh-client-ui-chat/client'
 import { escapeCurrencyDollars } from './dollars.ts'
+import { normalizeListIndent } from './list-indent.ts'
 import { CODE_THEMES, CODE_THEME_DARK, CODE_THEME_LIGHT, SHIKI_LANGUAGES } from './shiki.ts'
 import { citationLabel, extractCitations, hostOf, safeHttpUrl } from './citations.ts'
 import type { Citation } from './citations.ts'
@@ -592,7 +593,7 @@ export const MarkstreamMarkdown = memo(function MarkstreamMarkdown({ text, strea
   fileMentions?: MarkdownFileMentions | undefined
 }) {
   const isDark = useDshIsDark()
-  const content = useMemo(() => escapeCurrencyDollars(text, streaming), [text, streaming])
+  const content = useMemo(() => escapeCurrencyDollars(normalizeListIndent(text), streaming), [text, streaming])
   // Text already on hand when the view mounts (e.g. switching back to a running session) shows
   // at once; only what arrives afterwards is paced.
   const [paced, setPaced] = useState(false)
