@@ -24,8 +24,10 @@ describe('settings page', () => {
     const ctx = {
       slots,
       effect: vi.fn((setup: () => unknown) => { setup() }),
-      inject: vi.fn((_deps: string[], callback: (value: unknown) => void) => {
-        callback({ slots, locale: { register: localeRegister }, effect: (setup: () => unknown) => { setup() } })
+      // Like Cordis: a callback runs only when every service it asks for exists.
+      inject: vi.fn((deps: string[], callback: (value: unknown) => void) => {
+        const scoped = { slots, locale: { register: localeRegister }, effect: (setup: () => unknown) => { setup() } }
+        if (deps.every(dep => dep in scoped)) callback(scoped)
       }),
     }
     apply(ctx as never)
@@ -66,7 +68,7 @@ describe('settings page', () => {
   })
 
   it('fills defaults for unset values', () => {
-    expect(readValues(undefined)).toEqual({ citations: true, inlineImages: true, imageCount: 'auto', maxImages: 8 })
+    expect(readValues(undefined)).toEqual({ citations: true, inlineImages: true, imageCount: 'auto', maxImages: 8, selectionTools: true })
     expect(readValues({ maxImages: 99, imageCount: 'x' })).toMatchObject({ maxImages: 20, imageCount: 'auto' })
   })
 })

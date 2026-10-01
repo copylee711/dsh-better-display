@@ -884,3 +884,255 @@
     animation: none;
   }
 }
+
+/* ---- Selection: a soft highlight that keeps the text color (ChatGPT style) ---- */
+
+[data-chat-flow-kind] ::selection,
+.dsh-better-display__dock ::selection {
+  background: rgb(0 122 255 / 0.18);
+  color: inherit;
+}
+
+[data-chat-flow-kind] img::selection {
+  background: rgb(0 122 255 / 0.12);
+}
+
+[data-ds-dark-theme] [data-chat-flow-kind] ::selection,
+[data-ds-dark-theme] .dsh-better-display__dock ::selection {
+  background: rgb(64 156 255 / 0.32);
+}
+
+/* ---- Selection toolbar, side-question dialog, quote cards and answer bubbles ---- */
+
+.dsh-better-display__selection-bar {
+  position: fixed;
+  z-index: 10001;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-base, #fff);
+  box-shadow: 0 0 0 1px var(--dsw-alias-border-l1, rgb(127 127 127 / 0.2)), 0 6px 20px rgb(0 0 0 / 0.14);
+  user-select: none;
+}
+
+.dsh-better-display__selection-bar button,
+.dsh-better-display__quote-actions button,
+.dsh-better-display__bubble-actions button,
+.dsh-better-display__ask-actions button {
+  border: 0;
+  border-radius: 7px;
+  padding: 4px 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.dsh-better-display__selection-bar button:hover,
+.dsh-better-display__quote-actions button:hover,
+.dsh-better-display__bubble-actions button:hover,
+.dsh-better-display__ask-actions button:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(127 127 127 / 0.12));
+}
+
+/* Aligned with the composer card (DSH's own layout variables). */
+.dsh-better-display__dock {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+  width: calc(100% - 2 * var(--dsh-composer-side-clearance, 0px));
+  max-width: var(--dsh-composer-card-max-width, 100%);
+  max-height: 360px;
+  margin: 0 auto;
+  padding-bottom: 8px;
+  overflow: auto;
+}
+
+.dsh-better-display__dock:empty {
+  display: none;
+}
+
+.dsh-better-display__quote-cards,
+.dsh-better-display__bubbles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dsh-better-display__quote-card,
+.dsh-better-display__bubble {
+  border-radius: 12px;
+  padding: 8px 10px 8px 12px;
+  background: var(--dsw-alias-bg-base, #fff);
+  box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l1, rgb(127 127 127 / 0.2));
+}
+
+.dsh-better-display__quote-card {
+  border-left: 3px solid var(--dsw-alias-state-business-primary, #4d6bfe);
+}
+
+.dsh-better-display__quote-head,
+.dsh-better-display__bubble-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dsh-better-display__quote-label,
+.dsh-better-display__bubble-question {
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dsh-better-display__quote-actions,
+.dsh-better-display__bubble-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+}
+
+.dsh-better-display__quote-actions button,
+.dsh-better-display__bubble-actions button {
+  padding: 0 8px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+}
+
+/* Rendered quote, clipped to a few lines until expanded. */
+.dsh-better-display__quote-preview {
+  position: relative;
+  max-height: 96px;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.dsh-better-display__quote-preview[data-expanded] {
+  max-height: 320px;
+  overflow: auto;
+}
+
+.dsh-better-display__quote-preview:not([data-expanded])::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 24px;
+  background: linear-gradient(transparent, var(--dsw-alias-bg-base, #fff));
+  pointer-events: none;
+}
+
+.dsh-better-display__quote-preview .markdown-renderer > .node-slot:first-child :is(p, h1, h2, h3, h4, ul, ol) {
+  margin-top: 0;
+}
+
+.dsh-better-display__quote-editor,
+.dsh-better-display__ask textarea {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 6px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(127 127 127 / 0.3));
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: 13px/1.6 var(--dsw-font-markdown-code, ui-monospace, monospace);
+  resize: vertical;
+  outline: none;
+}
+
+.dsh-better-display__ask textarea {
+  font-family: inherit;
+}
+
+.dsh-better-display__quote-editor:focus,
+.dsh-better-display__ask textarea:focus {
+  border-color: var(--dsw-alias-state-business-primary, #4d6bfe);
+}
+
+.dsh-better-display__bubble-body {
+  max-height: 280px;
+  margin-top: 4px;
+  overflow: auto;
+  font-size: 13px;
+}
+
+.dsh-better-display__bubble-thinking,
+.dsh-better-display__bubble-error {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+}
+
+.dsh-better-display__bubble-error {
+  color: var(--dsw-alias-state-error-primary, #d93026);
+}
+
+.dsh-better-display__ask-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 0.32);
+}
+
+.dsh-better-display__ask {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(560px, 100%);
+  max-height: calc(100vh - 48px);
+  border-radius: 14px;
+  padding: 16px;
+  background: var(--dsw-alias-bg-base, #fff);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.22);
+}
+
+.dsh-better-display__ask-title {
+  color: var(--dsw-alias-label-primary);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.dsh-better-display__ask .dsh-better-display__quote-preview {
+  max-height: 160px;
+  overflow: auto;
+  border-left: 3px solid var(--dsw-alias-border-l2, rgb(127 127 127 / 0.3));
+  padding-left: 10px;
+}
+
+.dsh-better-display__ask .dsh-better-display__quote-preview::after {
+  display: none;
+}
+
+.dsh-better-display__ask-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.dsh-better-display__ask-actions .dsh-better-display__primary {
+  background: var(--dsw-alias-state-business-primary, #4d6bfe);
+  color: #fff;
+}
+
+.dsh-better-display__ask-actions .dsh-better-display__primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.dsh-better-display__ask-actions .dsh-better-display__primary:hover:not(:disabled) {
+  background: var(--dsw-alias-state-business-primary, #4d6bfe);
+  filter: brightness(1.08);
+}

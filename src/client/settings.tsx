@@ -29,6 +29,8 @@ export const zh = {
   citations: '引用角标',
   citationsHint: '让模型用 [n](url) 标注联网来源，回答中显示为可点击的上标角标，末尾汇总「来源」面板。',
   inlineImages: '正文配图',
+  selectionTools: '选中工具条',
+  selectionToolsHint: '在回答中选中文字或图片后，可「添加到对话」（可编辑的引用卡片，公式保持可读）或「旁问」（不打扰主对话的一次性提问）。',
   inlineImagesHint: '让模型把搜到的相关图片嵌入回答（image_search / page_images / save_images 的结果）。',
   imageCount: '配图数量',
   imageCountHint: '「由 AI 决定」时模型按内容需要配图，不需要就不配；也可以限制每条回答的最多张数。',
@@ -48,6 +50,8 @@ export const en: typeof zh = {
   citations: 'Citation chips',
   citationsHint: 'The model cites web sources as [n](url), shown as clickable superscripts with a sources panel at the end.',
   inlineImages: 'Inline pictures',
+  selectionTools: 'Selection toolbar',
+  selectionToolsHint: 'Select reply text or pictures to add them to the chat as an editable quote card, or ask a one-off side question.',
   inlineImagesHint: 'The model embeds relevant pictures from image_search / page_images / save_images in its answer.',
   imageCount: 'Picture count',
   imageCountHint: 'With "Let AI decide" the model adds as many pictures as the answer needs, or none; or cap it per reply.',
@@ -64,7 +68,7 @@ export const en: typeof zh = {
 type Key = keyof typeof zh
 type Translate = (key: Key) => string
 
-const DEFAULTS = { citations: true, inlineImages: true, imageCount: 'auto' as ImageCount, maxImages: 8 }
+const DEFAULTS = { citations: true, inlineImages: true, imageCount: 'auto' as ImageCount, maxImages: 8, selectionTools: true }
 
 /** Read the current values with defaults for anything unset. */
 export function readValues(value: Record<string, unknown> | undefined) {
@@ -75,6 +79,7 @@ export function readValues(value: Record<string, unknown> | undefined) {
     inlineImages: typeof v.inlineImages === 'boolean' ? v.inlineImages : DEFAULTS.inlineImages,
     imageCount: v.imageCount === 'limit' || v.imageCount === 'auto' ? v.imageCount : DEFAULTS.imageCount,
     maxImages: max,
+    selectionTools: typeof v.selectionTools === 'boolean' ? v.selectionTools : DEFAULTS.selectionTools,
   }
 }
 
@@ -151,6 +156,9 @@ export function DisplaySettings({ view, form, t }: { view: 'summary' | 'page', f
           onBlur={commitMax}
           onKeyDown={event => { if (event.key === 'Enter') commitMax() }}
         />
+      </Row>
+      <Row label={t('selectionTools')} hint={t('selectionToolsHint')}>
+        <Switch checked={values.selectionTools} label={t('selectionTools')} disabled={disabled} onChange={next => { write('selectionTools', next) }} />
       </Row>
       {status !== 'idle' && (
         <div className="dsh-better-display__setting-note" data-state={status}>{t(status === 'saved' ? 'saved' : 'saveFailed')}</div>

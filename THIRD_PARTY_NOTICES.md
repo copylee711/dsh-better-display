@@ -27,3 +27,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+The side-question feature (`src/side-question.ts`, `src/client/side-questions.ts`) and the
+selection toolbar (`src/client/selection-ui.tsx`) follow the design of
+[dsh-btw](https://github.com/MichengAI/dsh-btw) by MichengAI (a tool-less fork subagent behind
+hidden commands, a tool guard, a toolbar over transcript selections). The code was written anew
+for this package; dsh-btw is licensed under the Apache License, Version 2.0
+(https://www.apache.org/licenses/LICENSE-2.0).

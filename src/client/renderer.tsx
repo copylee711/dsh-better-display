@@ -15,6 +15,8 @@ import { citationLabel, extractCitations, hostOf, safeHttpUrl } from './citation
 import type { Citation } from './citations.ts'
 import { WorkspaceProvider, localPath, useWorkspace, workspaceFileUrl } from './workspace.ts'
 import { generatedJobId, generatedLabels, isGeneratedImage, jobImageUrl, useGeneratedJob } from './generated-image.ts'
+import { activeComposer } from './composer.ts'
+import { label as uiLabel } from './labels.ts'
 
 const CUSTOM_COMPONENT_SCOPE = 'dsh-better-display'
 /** Exports looked up by name because they were renamed or added across DSH releases. */
@@ -118,6 +120,15 @@ function Lightbox({ src, alt, filePath, onClose }: { src: string, alt: string, f
           : filePath !== undefined && openFile !== undefined
             ? <button type="button" title={filePath} onClick={() => { openFile(filePath); onClose() }}>{labels.openFile}</button>
             : <button type="button" disabled={saving} onClick={save}>{saving ? labels.saving : labels.save}</button>}
+        {activeComposer()?.activeSession !== undefined && (
+          <button type="button" onClick={() => {
+            const composer = activeComposer()
+            const session = composer?.activeSession
+            if (composer === undefined || session === undefined) return
+            onClose()
+            void composer.add(session, '', [{ src, alt }]).catch((error: unknown) => { composer.notify(session, error) })
+          }}>{uiLabel('addToChat')}</button>
+        )}
         <button type="button" onClick={onClose}>{labels.close}</button>
       </div>
     </div>,

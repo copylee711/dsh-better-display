@@ -20,7 +20,9 @@ function mountHost(config: unknown) {
     }),
     on: vi.fn((event: string, listener: (...args: never[]) => unknown) => { (listeners[event] ??= []).push(listener) }),
   }
-  const ctx = { inject: vi.fn((_deps: string[], callback: (value: unknown) => void) => { callback(scoped) }) }
+  // Like Cordis: a callback runs only when every service it asks for exists.
+  const services: Record<string, unknown> = { systemPrompt: scoped.systemPrompt, settings: {}, tools: {} }
+  const ctx = { inject: vi.fn((deps: string[], callback: (value: unknown) => void) => { if (deps.every(dep => dep in services)) callback(scoped) }) }
   apply(ctx as never, config)
   const emit = (ns: string) => listeners['settings/document-updated']?.forEach(listener => { (listener as (ns: unknown) => void)(ns) })
   return { ctx, section, emit, listeners, unload: () => disposers.forEach(fn => { fn() }) }
@@ -28,7 +30,7 @@ function mountHost(config: unknown) {
 
 describe('host prompt section', () => {
   it('declares a schema DSH can turn into a settings form', () => {
-    expect(resolveConfig(Config({}))).toEqual({ citations: true, inlineImages: true, imageCount: 'auto', maxImages: 8, sectionOrder: 600 })
+    expect(resolveConfig(Config({}))).toEqual({ citations: true, inlineImages: true, imageCount: 'auto', maxImages: 8, sectionOrder: 600, selectionTools: true })
     expect(() => Config({ maxImages: 50 })).toThrow()
     expect(() => Config({ imageCount: 'many' } as never)).toThrow()
   })

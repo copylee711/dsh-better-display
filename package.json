@@ -1,6 +1,6 @@
 {
   "name": "@copylee/dsh-better-display",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "description": "DeepSeek Harness Web plugin: illustrated assistant replies with GPT-style citation chips and a sources panel for web-search results, on top of streaming markstream-react Markdown.",
   "packageManager": "pnpm@10.33.3",
   "author": "copylee711",
@@ -54,7 +54,10 @@
         "@deepseek-ai/dsh-client-ui-chat",
         "@deepseek-ai/dsh-client-ui-conversation",
         "@deepseek-ai/dsh-client-ui-slots",
-        "@deepseek-ai/dsh-client-ui-primitives"
+        "@deepseek-ai/dsh-client-ui-primitives",
+        "@deepseek-ai/dsh-client-ui-input-trigger",
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-locale"
       ]
     },
     "engines": {
@@ -100,6 +103,7 @@
     "@deepseek-ai/dsh-util-code-language": "0.2.0-rc.2",
     "@deepseek-ai/dsh-util-workspace-path": "0.2.0-rc.2",
     "@testing-library/react": "^16.3.0",
+    "@types/node": "^22.20.4",
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.0",
     "anser": "^2.3.5",

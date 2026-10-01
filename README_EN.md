@@ -80,6 +80,18 @@ With [@copylee/dsh-image-gen](https://github.com/copylee711/dsh-image-gen) insta
 - During a background generation (`background: true`, e.g. "explain Gauss's law with a diagram") a placeholder at the same ratio stands in while the text keeps streaming. It turns into the picture when the job finishes, even after the reply ended, or shows the failure reason.
 - Galleries keep each picture's aspect ratio instead of cropping them to one height.
 
+## Quotes and side questions
+
+Select text or pictures in a reply to get a small toolbar:
+
+- **Add to chat** attaches the selection as a quote card above the composer, like ChatGPT's quotes.
+  - Formulas, emphasis, lists, tables and code come back as their Markdown source, so the card renders them properly instead of garbled text.
+  - Cards can be expanded, edited (as Markdown) or removed. The composer only shows a small chip, which becomes a tidy `>` blockquote when you send.
+  - Selected pictures (including dsh-image-gen images) are attached as images; the picture preview has "Add to chat" too.
+- **Ask aside** asks a one-off question about the selection (e.g. "Explain this"). A tool-less fork of the conversation answers it in a bubble above the composer, with Markdown and math, without touching the main conversation.
+
+These replace [dsh-btw](https://github.com/MichengAI/dsh-btw); with both installed you get two toolbars, so uninstall dsh-btw. The "Selection toolbar" setting turns both features off.
+
 ## Install
 
 > This plugin is a **superset** of dsh-better-markdown and shadows it at a lower slot priority. Remove dsh-better-markdown afterwards to avoid shipping a second bundle:

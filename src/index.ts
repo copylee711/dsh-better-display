@@ -9,8 +9,11 @@
  * instead of requiring a restart.
  */
 
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import { IMAGE_PROXY_PATH, imageProxyRoute } from './image-proxy.ts'
+import { setupSideQuestions, sideQuestionsAvailable, type SideHost } from './side-question.ts'
 
 /** Stable Cordis plugin name. */
 export const name = 'dsh-better-display'
@@ -33,6 +36,8 @@ export interface Config {
   maxImages: number
   /** Registry order among system-prompt sections (higher = later). */
   sectionOrder: number
+  /** Toolbar over selected reply text: add it to the chat as a quote, or ask a side question. */
+  selectionTools: boolean
 }
 
 export const DEFAULTS: Config = {
@@ -41,6 +46,7 @@ export const DEFAULTS: Config = {
   imageCount: 'auto',
   maxImages: 8,
   sectionOrder: 600,
+  selectionTools: true,
 }
 
 export const Config = z.object({
@@ -62,6 +68,10 @@ export const Config = z.object({
   maxImages: z.natural().min(1).max(20).default(DEFAULTS.maxImages).volatile().i18n({
     'zh-CN': { $description: '每条回答最多配图张数（仅在「限制最多张数」时生效）。' },
     'en-US': { $description: 'Maximum pictures per reply (only with "Cap the number").' },
+  }),
+  selectionTools: z.boolean().default(DEFAULTS.selectionTools).volatile().i18n({
+    'zh-CN': { $description: '选中工具条：在回答中选中文字或图片后，可「添加到对话」（引用卡片，公式保持可读、可编辑）或「旁问」（不打扰主对话的一次性提问）。' },
+    'en-US': { $description: 'Selection toolbar: select reply text or pictures to add them to the chat as an editable quote card, or ask a one-off side question.' },
   }),
   sectionOrder: z.number().default(DEFAULTS.sectionOrder).volatile().i18n({
     'zh-CN': { $description: '高级：system prompt 中本段的排序（越大越靠后）。' },
@@ -100,6 +110,7 @@ export function resolveConfig(raw: unknown): Config {
     imageCount: pick('imageCount', value => value === 'auto' || value === 'limit'),
     maxImages: Math.min(20, Math.max(1, Math.floor(maxImages))),
     sectionOrder: pick('sectionOrder', value => typeof value === 'number' && Number.isFinite(value)),
+    selectionTools: pick('selectionTools', value => typeof value === 'boolean'),
   }
 }
 
@@ -182,6 +193,14 @@ export function withEmbedHint(
   return { ...decision, content: [...content, hint] }
 }
 
+/** Browser-readable switches (see the `webServer` block in {@link apply}). */
+export const STATE_PATH = '/plugins/better-display/state'
+
+type RouteHandler = (req: IncomingMessage, res: ServerResponse) => Promise<void>
+interface WebServer {
+  register(route: { kind: 'exact' | 'prefix', path: string, handler: RouteHandler }): () => void
+}
+
 interface SystemPromptRegistry {
   section(section: { name: string, order: number, text: string }): () => void
 }
@@ -229,6 +248,37 @@ export function apply(ctx: Context, config: unknown): void {
         const decision = await next()
         return current().inlineImages ? withEmbedHint(exec, result, decision) : decision
       })
+  })
+
+  // Browser state (selection toolbar switch, side-question availability) and the image proxy the
+  // "Add to chat" action uses for pictures from other sites.
+  ctx.inject(['webServer'], (wctx) => {
+    const server = (wctx as unknown as { webServer: WebServer }).webServer
+    const route = (path: string, handler: RouteHandler) => {
+      wctx.effect(() => server.register({ kind: 'exact', path, handler }), `dsh-better-display: ${path}`)
+    }
+    route(IMAGE_PROXY_PATH, imageProxyRoute())
+    route(STATE_PATH, async (_req, res) => {
+      const subagents = ctx.get('subagents') as Parameters<typeof sideQuestionsAvailable>[0]
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+      res.end(JSON.stringify({ selectionTools: current().selectionTools, sideQuestions: current().selectionTools && sideQuestionsAvailable(subagents) }))
+    })
+  })
+
+  // Side questions: a tool-less fork answers a question about a quote (src/side-question.ts).
+  ctx.inject(['commands', 'subagents', 'tools'], (sctx) => {
+    // The tool guard and session events must see forks composed anywhere, so they hang off the root.
+    const root = (sctx as unknown as { extend(meta: object): Context, root: { fiber: unknown } })
+    const host = root.extend({ fiber: root.root.fiber }) as unknown as { tools: SideHost['tools'], on: SideHost['on'] }
+    const scoped = sctx as unknown as SideHost
+    setupSideQuestions({
+      commands: scoped.commands,
+      subagents: scoped.subagents,
+      tools: host.tools,
+      on: (event, listener) => host.on(event, listener),
+      effect: (setup, label) => { sctx.effect(setup, label) },
+      logger: { warn: message => { (sctx as unknown as { logger?: { warn(m: string): void } }).logger?.warn(message) } },
+    })
   })
 
   // Settings edits land in place (volatile fields); re-render the section when ours change.
