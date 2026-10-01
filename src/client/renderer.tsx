@@ -51,18 +51,73 @@ function imageSource(url: string, cwd: string | undefined): string | undefined {
   return path === undefined ? undefined : workspaceFileUrl(document.baseURI, cwd, path)
 }
 
-function Lightbox({ src, alt, onClose }: { src: string, alt: string, onClose: () => void }) {
+function lightboxLabels() {
+  const lang = typeof document === 'undefined' ? '' : document.documentElement.lang || navigator.language
+  return lang.toLowerCase().startsWith('zh')
+    ? { open: '打开原图 ↗', openFile: '打开文件', save: '保存图片', saving: '保存中…', close: '关闭', preview: '图片预览' }
+    : { open: 'Open original ↗', openFile: 'Open file', save: 'Save image', saving: 'Saving…', close: 'Close', preview: 'Image preview' }
+}
+
+/**
+ * Whether the picture lives on another site. Those open in the system browser (DSH Desktop hands
+ * only http(s) links to it); the page's own files (workspace files, generated images, served from
+ * `dsh-app://` on Desktop) cannot be opened that way, so they are saved instead.
+ */
+export function isExternalImage(src: string): boolean {
+  try {
+    const url = new URL(src, document.baseURI)
+    return (url.protocol === 'http:' || url.protocol === 'https:') && url.origin !== new URL(document.baseURI).origin
+  } catch {
+    return false
+  }
+}
+
+const IMAGE_EXTENSIONS: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/svg+xml': 'svg' }
+
+/** Download one of the page's own images under a readable name. */
+async function saveImage(src: string, alt: string): Promise<void> {
+  const response = await fetch(src, { credentials: 'same-origin' })
+  if (!response.ok) throw new Error(`HTTP ${String(response.status)}`)
+  const blob = await response.blob()
+  const base = alt.replace(/[\\/:*?"<>|\s]+/g, ' ').trim().slice(0, 60) || 'image'
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${base}.${IMAGE_EXTENSIONS[blob.type] ?? 'png'}`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  setTimeout(() => { URL.revokeObjectURL(url) }, 1000)
+}
+
+/**
+ * Full-size preview. Its action follows where the picture lives: another site opens in the
+ * browser; a file on disk opens through DSH (Desktop drops non-http links and downloads); any
+ * other page-own image is downloaded.
+ */
+function Lightbox({ src, alt, filePath, onClose }: { src: string, alt: string, filePath?: string | undefined, onClose: () => void }) {
+  const [saving, setSaving] = useState(false)
+  const { openFile } = useWorkspace()
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
     return () => { document.removeEventListener('keydown', onKey) }
   }, [onClose])
+  const labels = lightboxLabels()
+  const save = () => {
+    setSaving(true)
+    void saveImage(src, alt).catch(() => { window.open(src, '_blank', 'noopener') }).finally(() => { setSaving(false) })
+  }
   return createPortal(
-    <div className="dsh-better-display__lightbox" role="dialog" aria-modal="true" aria-label={alt || 'Image preview'} onClick={onClose}>
+    <div className="dsh-better-display__lightbox" role="dialog" aria-modal="true" aria-label={alt || labels.preview} onClick={onClose}>
       <img src={src} alt={alt} referrerPolicy="no-referrer" onClick={event => { event.stopPropagation() }} />
       <div className="dsh-better-display__lightbox-bar" onClick={event => { event.stopPropagation() }}>
-        <a href={src} target="_blank" rel="noopener noreferrer">Open original ↗</a>
-        <button type="button" onClick={onClose}>Close</button>
+        {isExternalImage(src)
+          ? <a href={src} target="_blank" rel="noopener noreferrer">{labels.open}</a>
+          : filePath !== undefined && openFile !== undefined
+            ? <button type="button" title={filePath} onClick={() => { openFile(filePath); onClose() }}>{labels.openFile}</button>
+            : <button type="button" disabled={saving} onClick={save}>{saving ? labels.saving : labels.save}</button>}
+        <button type="button" onClick={onClose}>{labels.close}</button>
       </div>
     </div>,
     document.body,
@@ -108,7 +163,7 @@ function GeneratedImageNode({ node }: NodeComponentProps<ImageNode>) {
           onClick={() => { setZoomed(true) }}
         />
         {caption !== '' && <span className="dsh-better-display__caption">{caption}</span>}
-        {zoomed && <Lightbox src={src} alt={node.alt} onClose={close} />}
+        {zoomed && <Lightbox src={src} alt={node.alt} filePath={job.path} onClose={close} />}
       </span>
     )
   }
@@ -159,7 +214,7 @@ function PlainImageNode({ node }: NodeComponentProps<ImageNode>) {
         onClick={() => { setZoomed(true) }}
       />
       {caption !== '' && <span className="dsh-better-display__caption">{caption}</span>}
-      {zoomed && <Lightbox src={src} alt={node.alt} onClose={close} />}
+      {zoomed && <Lightbox src={src} alt={node.alt} filePath={remoteImage(node.src) === undefined ? localPath(node.src) : undefined} onClose={close} />}
     </span>
   )
 }

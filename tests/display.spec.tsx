@@ -98,6 +98,7 @@ describe('rich rendering', () => {
     expect(view.container.querySelector('img[src="./secret.png"]')).toBeNull()
     fireEvent.click(figures[0]!.querySelector('img')!)
     expect(document.querySelector('.dsh-better-display__lightbox img')?.getAttribute('src')).toBe('https://img.example/a.jpg')
+    expect(document.querySelector('.dsh-better-display__lightbox-bar a')?.getAttribute('href')).toBe('https://img.example/a.jpg')
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(document.querySelector('.dsh-better-display__lightbox')).toBeNull()
     plugin.dispose()
@@ -142,5 +143,15 @@ describe('dollar amounts', () => {
     const math = render(<MarkstreamMarkdown text={'面积 $r^2$'} streaming={false} />)
     await new Promise(resolve => setTimeout(resolve, 200))
     expect(math.container.querySelector('.katex')).not.toBeNull()
+  })
+
+  it('renders formulas with |…| inside table cells', async () => {
+    const text = ['| 类型 | 表达式 |', '|---|---|', String.raw`| 线电流 | $\frac{\mathrm d\ell'}{|\mathbf r-\mathbf r'|^3}$ |`].join('\n')
+    const view = render(<MarkstreamMarkdown text={text} streaming={false} />)
+    await new Promise(resolve => setTimeout(resolve, 200))
+    const cells = view.container.querySelectorAll('td')
+    expect(cells).toHaveLength(2)
+    expect(cells[1]?.querySelector('.katex')).not.toBeNull()
+    expect(cells[1]?.textContent).not.toContain('\frac')
   })
 })

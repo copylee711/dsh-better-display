@@ -17,6 +17,14 @@ describe('escapeCurrencyDollars', () => {
     expect(esc('$$\n\\int_0^1 x\\,dx\n$$')).toBe('$$\n\\int_0^1 x\\,dx\n$$')
   })
 
+  it('keeps absolute-value bars in table-row math from splitting the cell', () => {
+    const row = String.raw`| 线电流 | $I\,\mathrm d\ell'$ | $\frac{I}{|\mathbf r-\mathbf r'|^3}$ |`
+    expect(esc(row)).toBe(String.raw`| 线电流 | $I\,\mathrm d\ell'$ | $\frac{I}{\vert \mathbf r-\mathbf r'\vert ^3}$ |`)
+    expect(esc(String.raw`| a | $\left|x\right|$ and $\|v\|$ |`)).toBe(String.raw`| a | $\left\vert x\right\vert $ and $\|v\|$ |`)
+    expect(esc('| a | $$|x|$$ |')).toBe(String.raw`| a | $$\vert x\vert $$ |`)
+    expect(esc('outside a table $|x|$')).toBe('outside a table $|x|$')
+  })
+
   it('leaves code and escapes alone', () => {
     expect(esc('run `echo $HOME` now')).toBe('run `echo $HOME` now')
     expect(esc('```sh\necho $HOME $2\n```')).toBe('```sh\necho $HOME $2\n```')

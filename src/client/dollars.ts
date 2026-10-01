@@ -6,7 +6,9 @@
  * Code spans, fenced code, `$$` display math and already escaped `\$` are left alone.
  *
  * Inside math, a Markdown-escaped asterisk (`x^\*`, written to dodge emphasis) is turned back
- * into `*`: KaTeX has no `\*` command and would render it as a red error.
+ * into `*`: KaTeX has no `\*` command and would render it as a red error. In a table row, a bare
+ * `|` inside math (`|\mathbf r-\mathbf r'|`) would end the cell and cut the formula, so it is
+ * written as the equivalent `\vert`.
  */
 
 const FENCE = /^ {0,3}(`{3,}|~{3,})/
@@ -38,9 +40,14 @@ function closingDollar(line: string, open: number, tail = false): number {
 
 const ESCAPED_ASTERISK = /(^|[^\\])\\\*/g
 
-/** Undo Markdown-style `\*` inside TeX. */
-function fixMath(tex: string): string {
-  return tex.includes('\\*') ? tex.replace(ESCAPED_ASTERISK, '$1*').replace(ESCAPED_ASTERISK, '$1*') : tex
+const BARE_PIPE = /(^|[^\\])\|/g
+/** A GFM table row (header, delimiter or body) written with a leading pipe. */
+const TABLE_ROW = /^ {0,3}\|/
+
+/** Undo Markdown-style `\*` inside TeX; in a table row, keep `|` from splitting the cell. */
+function fixMath(tex: string, tableRow = false): string {
+  const out = tex.includes('\\*') ? tex.replace(ESCAPED_ASTERISK, '$1*').replace(ESCAPED_ASTERISK, '$1*') : tex
+  return tableRow && out.includes('|') ? out.replace(BARE_PIPE, '$1\\vert ').replace(BARE_PIPE, '$1\\vert ') : out
 }
 
 /** Drop a trailing unpaired backslash: the escape it starts is not known yet. */
@@ -56,6 +63,7 @@ function withoutDanglingEscape(text: string): string {
  * update only appends to what was already shown.
  */
 function escapeLine(line: string, tail: boolean): string {
+  const tableRow = TABLE_ROW.test(line)
   let out = ''
   let i = 0
   while (i < line.length) {
@@ -74,7 +82,7 @@ function escapeLine(line: string, tail: boolean): string {
     if (line[i + 1] === '$') {
       const end = line.indexOf('$$', i + 2)
       const stop = end === -1 ? line.length : end + 2
-      out += fixMath(line.slice(i, stop))
+      out += fixMath(line.slice(i, stop), tableRow)
       i = stop
       continue
     }
@@ -86,7 +94,7 @@ function escapeLine(line: string, tail: boolean): string {
       i++
       continue
     }
-    out += fixMath(line.slice(i, close + 1))
+    out += fixMath(line.slice(i, close + 1), tableRow)
     i = close + 1
   }
   return out

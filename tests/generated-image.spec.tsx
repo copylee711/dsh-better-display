@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { removeCustomComponents } from 'markstream-react'
 import { apply } from '../src/client/index.ts'
 import { MarkstreamMarkdown } from '../src/client/renderer.tsx'
+import { WorkspaceProvider } from '../src/client/workspace.ts'
 import { generatedJobId, jobImageUrl, jobStatusUrl, resetGeneratedJobs } from '../src/client/generated-image.ts'
 
 const JOB = '0f8c2a4e-1b2c-4d3e-8f90-123456789abc'
@@ -71,8 +72,35 @@ describe('genimg references', () => {
     expect(view.container.querySelector('.dsh-better-display__image-placeholder')).toBeNull()
     fireEvent.click(image)
     expect(document.querySelector('.dsh-better-display__lightbox img')?.getAttribute('src')).toBe(jobImageUrl(JOB))
+    // The page's own image cannot open in the system browser on Desktop: offer saving instead.
+    const bar = document.querySelector('.dsh-better-display__lightbox-bar')
+    expect(bar?.querySelector('a')).toBeNull()
+    expect(bar?.querySelectorAll('button')).toHaveLength(2)
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(fetch).toHaveBeenCalledWith(jobStatusUrl(JOB), expect.objectContaining({ cache: 'no-store' }))
+    plugin.dispose()
+  })
+
+  it('opens a finished image through DSH when its file path is known', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ id: JOB, status: 'done', width: 4, height: 3, path: 'D:/ws/copylee-image-gen/image-1.png' })))
+    const openFile = vi.fn()
+    const plugin = mountPlugin()
+    const view = render(
+      <WorkspaceProvider value={{ cwd: 'D:/ws', openFile }}>
+        <MarkstreamMarkdown text={`![Diagram](genimg:${JOB})`} streaming={false} />
+      </WorkspaceProvider>,
+    )
+    const image = await waitFor(() => {
+      const img = view.container.querySelector('img.dsh-better-display__image')
+      expect(img).not.toBeNull()
+      return img!
+    })
+    fireEvent.click(image)
+    const open = document.querySelector<HTMLButtonElement>('.dsh-better-display__lightbox-bar button[title]')
+    expect(open?.getAttribute('title')).toBe('D:/ws/copylee-image-gen/image-1.png')
+    fireEvent.click(open!)
+    expect(openFile).toHaveBeenCalledWith('D:/ws/copylee-image-gen/image-1.png')
+    expect(document.querySelector('.dsh-better-display__lightbox')).toBeNull()
     plugin.dispose()
   })
 

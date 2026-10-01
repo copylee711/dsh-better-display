@@ -20,6 +20,8 @@ export interface GeneratedJob {
   width: number
   height: number
   error?: string
+  /** The finished image on disk (dsh-image-gen's workspace or gallery copy). */
+  path?: string
 }
 
 /** Settled jobs, so a remounted node (streaming re-parses) never flashes back to the placeholder. */
@@ -49,7 +51,11 @@ function parseJob(value: unknown): GeneratedJob | undefined {
   if (job.status !== 'pending' && job.status !== 'done' && job.status !== 'failed') return undefined
   const width = typeof job.width === 'number' && job.width > 0 ? job.width : 1
   const height = typeof job.height === 'number' && job.height > 0 ? job.height : 1
-  return { status: job.status, width, height, ...(typeof job.error === 'string' ? { error: job.error } : {}) }
+  return {
+    status: job.status, width, height,
+    ...(typeof job.error === 'string' ? { error: job.error } : {}),
+    ...(typeof job.path === 'string' && job.path !== '' ? { path: job.path } : {}),
+  }
 }
 
 const PENDING: GeneratedJob = { status: 'pending', width: 1, height: 1 }
