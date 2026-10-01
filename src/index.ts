@@ -73,6 +73,9 @@ export const Config = z.object({
 const SOURCE_TOOLS = 'web_search, web_fetch, multi_search, advanced_search, platform_search'
 /** Tools whose results carry picture URLs or saved picture paths (@copylee/dsh-free-search). */
 const IMAGE_TOOLS = 'image_search, page_images, save_images'
+/** dsh-image-gen tools whose results carry a `genimg:<job id>` reference. */
+const GENERATED_IMAGE_TOOLS = 'paint_image, paint_images, edit_painting'
+const GENERATED_IMAGE_TOOL_NAMES = new Set(['paint_image', 'paint_images', 'edit_painting'])
 
 /**
  * Unwrap the Loader's volatile references (`{ get() }`) into plain values, filling defaults.
@@ -134,10 +137,49 @@ export function promptText(config: Config): string {
       '- Place a picture next to the paragraph it illustrates. Put 2-4 related pictures on one line (no blank line between them) to show them as a gallery.',
       '- If you have no suitable picture and the answer would clearly benefit from one, you may call image_search or page_images first when available.',
       '- Never embed an image URL you did not get from a tool result or the user.',
+      '',
+      '### Generated images',
+      `When ${GENERATED_IMAGE_TOOLS} return an inline image reference (\`genimg:<id>\`), show the picture inside your reply by embedding exactly that reference: \`![Gaussian surface around a point charge](genimg:<id>)\`. Alt text is the caption.`,
+      '- Prefer it over linking the saved workspace file, and place it where it illustrates the text. It does not count toward the picture budget above.',
+      '- A background job (`background: true`) shows as a placeholder that turns into the image when ready, even after your reply ends: embed it right away and keep writing; never wait or poll for it.',
     )
   }
   if (parts.length === 0) return ''
   return ['## Rich answer formatting (dsh-better-display)', '', ...parts].join('\n')
+}
+
+type TextBlock = { type: 'text', text: string }
+type ContentBlocks = ReadonlyArray<{ type: string, text?: string }>
+/** The parts of a `tools/post-execute` decision this plugin touches. */
+type PostToolDecision = { kind: string, content?: ContentBlocks, value?: unknown }
+type PostExecuteListener = (
+  exec: { name: string },
+  result: { isError: boolean, content: ContentBlocks },
+  next: () => Promise<PostToolDecision>,
+) => Promise<PostToolDecision>
+
+const GENIMG_REFERENCE = /genimg:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/g
+
+/**
+ * Append the embed instruction to a successful dsh-image-gen result that carries `genimg:`
+ * references; every other decision passes through unchanged.
+ */
+export function withEmbedHint(
+  exec: { name: string },
+  result: { isError: boolean, content: ContentBlocks },
+  decision: PostToolDecision,
+): PostToolDecision {
+  if (!GENERATED_IMAGE_TOOL_NAMES.has(exec.name) || result.isError || decision.kind !== 'accept' || decision.value !== undefined) return decision
+  const content = decision.content ?? result.content
+  const text = content.map(block => block.type === 'text' ? block.text ?? '' : '').join('\n')
+  const ids = [...new Set([...text.matchAll(GENIMG_REFERENCE)].map(match => match[1]))]
+  if (ids.length === 0) return decision
+  const examples = ids.map(id => `![<short caption>](genimg:${id})`).join(' ')
+  const hint: TextBlock = {
+    type: 'text',
+    text: `Display: the user sees ${ids.length > 1 ? 'these images' : 'this image'} only if your reply text embeds ${examples} (rendered inline, at its real aspect ratio, by dsh-better-display). A file link, file card or deliverable does not show the picture, so embed it even when you also mention the saved file.`,
+  }
+  return { ...decision, content: [...content, hint] }
 }
 
 interface SystemPromptRegistry {
@@ -177,6 +219,16 @@ export function apply(ctx: Context, config: unknown): void {
         refresh = () => {}
       }
     }, 'dsh-better-display: rich answer prompt section')
+  })
+
+  // dsh-image-gen results: repeat the embed instruction right in the tool output, where the model
+  // reliably reads it (a system-prompt rule alone loses to "hand over the saved file").
+  ctx.inject(['tools'], (tctx) => {
+    (tctx as unknown as { on(event: string, listener: PostExecuteListener): void })
+      .on('tools/post-execute', async (exec, result, next) => {
+        const decision = await next()
+        return current().inlineImages ? withEmbedHint(exec, result, decision) : decision
+      })
   })
 
   // Settings edits land in place (volatile fields); re-render the section when ours change.

@@ -13,6 +13,7 @@ import { CODE_THEMES, CODE_THEME_DARK, CODE_THEME_LIGHT, SHIKI_LANGUAGES } from 
 import { citationLabel, extractCitations, hostOf, safeHttpUrl } from './citations.ts'
 import type { Citation } from './citations.ts'
 import { WorkspaceProvider, localPath, useWorkspace, workspaceFileUrl } from './workspace.ts'
+import { generatedJobId, generatedLabels, isGeneratedImage, jobImageUrl, useGeneratedJob } from './generated-image.ts'
 
 const CUSTOM_COMPONENT_SCOPE = 'dsh-better-display'
 /** Exports looked up by name because they were renamed or added across DSH releases. */
@@ -69,11 +70,68 @@ function Lightbox({ src, alt, onClose }: { src: string, alt: string, onClose: ()
 }
 
 /**
- * Inline picture with caption and click-to-zoom: remote http(s) images, or workspace files
- * resolved through the DSH owner (e.g. pictures saved by save_images).
- * Rendered as spans because Markdown images live inside paragraphs.
+ * Inline picture with caption and click-to-zoom: remote http(s) images, workspace files
+ * resolved through the DSH owner (e.g. pictures saved by save_images), or `genimg:` images
+ * from dsh-image-gen. Rendered as spans because Markdown images live inside paragraphs.
+ * Dispatches to separate components so a src that streams into `genimg:` remounts cleanly.
  */
-export function DshImageNode({ node }: NodeComponentProps<ImageNode>) {
+export function DshImageNode(props: NodeComponentProps<ImageNode>) {
+  return isGeneratedImage(props.node.src) ? <GeneratedImageNode {...props} /> : <PlainImageNode {...props} />
+}
+
+function figureCaption(node: ImageNode): string {
+  return [node.alt, node.title].filter(part => part !== null && part !== '').join(' · ')
+}
+
+/**
+ * A dsh-image-gen job: a placeholder at the expected aspect ratio while it renders (it may
+ * finish after the reply), then the image at its real size, or the failure reason.
+ */
+function GeneratedImageNode({ node }: NodeComponentProps<ImageNode>) {
+  const id = generatedJobId(node.src)
+  const job = useGeneratedJob(id)
+  const [zoomed, setZoomed] = useState(false)
+  const close = useCallback(() => { setZoomed(false) }, [])
+  const caption = figureCaption(node)
+  const ratio = `${String(job.width)} / ${String(job.height)}`
+  if (job.status === 'done' && id !== undefined) {
+    const src = jobImageUrl(id)
+    return (
+      <span className="dsh-better-display__figure" role="figure" aria-label={node.alt || undefined}>
+        <img
+          className="dsh-better-display__image"
+          src={src}
+          alt={node.alt}
+          width={job.width}
+          height={job.height}
+          style={{ aspectRatio: ratio }}
+          onClick={() => { setZoomed(true) }}
+        />
+        {caption !== '' && <span className="dsh-better-display__caption">{caption}</span>}
+        {zoomed && <Lightbox src={src} alt={node.alt} onClose={close} />}
+      </span>
+    )
+  }
+  const labels = generatedLabels()
+  const failed = job.status === 'failed'
+  return (
+    <span className="dsh-better-display__figure" role="figure" aria-label={node.alt || undefined}>
+      <span
+        className={`dsh-better-display__image-placeholder${failed ? ' dsh-better-display__image-placeholder--failed' : ''}`}
+        style={{ aspectRatio: ratio, width: `min(100%, ${String(Math.round(420 * job.width / job.height))}px)` }}
+        aria-busy={!failed}
+        role={failed ? 'alert' : 'status'}
+      >
+        <span className="dsh-better-display__image-placeholder-label">
+          {failed ? `${labels.failed}${job.error === undefined ? '' : `: ${job.error}`}` : labels.generating}
+        </span>
+      </span>
+      {caption !== '' && <span className="dsh-better-display__caption">{caption}</span>}
+    </span>
+  )
+}
+
+function PlainImageNode({ node }: NodeComponentProps<ImageNode>) {
   const [failed, setFailed] = useState(false)
   const [zoomed, setZoomed] = useState(false)
   const close = useCallback(() => { setZoomed(false) }, [])
@@ -87,7 +145,7 @@ export function DshImageNode({ node }: NodeComponentProps<ImageNode>) {
       </a>
     )
   }
-  const caption = [node.alt, node.title].filter(part => part !== null && part !== '').join(' · ')
+  const caption = figureCaption(node)
   return (
     <span className="dsh-better-display__figure" role="figure" aria-label={node.alt || undefined}>
       <img

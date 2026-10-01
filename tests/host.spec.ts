@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { Config, DEFAULTS, apply, promptText, resolveConfig } from '../src/index.ts'
+import { Config, DEFAULTS, apply, promptText, resolveConfig, withEmbedHint } from '../src/index.ts'
 
 /** Volatile references as the DSH Loader hands them to `apply`. */
 function liveConfig(initial: Partial<typeof DEFAULTS> = {}) {
@@ -10,7 +10,7 @@ function liveConfig(initial: Partial<typeof DEFAULTS> = {}) {
 
 function mountHost(config: unknown) {
   const disposers: Array<() => void> = []
-  const listeners: Record<string, Array<(ns: unknown) => void>> = {}
+  const listeners: Record<string, Array<(...args: never[]) => unknown>> = {}
   const section = vi.fn(() => vi.fn())
   const scoped = {
     systemPrompt: { section },
@@ -18,12 +18,12 @@ function mountHost(config: unknown) {
       const result = setup()
       if (typeof result === 'function') disposers.push(result)
     }),
-    on: vi.fn((event: string, listener: (ns: unknown) => void) => { (listeners[event] ??= []).push(listener) }),
+    on: vi.fn((event: string, listener: (...args: never[]) => unknown) => { (listeners[event] ??= []).push(listener) }),
   }
   const ctx = { inject: vi.fn((_deps: string[], callback: (value: unknown) => void) => { callback(scoped) }) }
   apply(ctx as never, config)
-  const emit = (ns: string) => listeners['settings/document-updated']?.forEach(listener => { listener(ns) })
-  return { ctx, section, emit, unload: () => disposers.forEach(fn => { fn() }) }
+  const emit = (ns: string) => listeners['settings/document-updated']?.forEach(listener => { (listener as (ns: unknown) => void)(ns) })
+  return { ctx, section, emit, listeners, unload: () => disposers.forEach(fn => { fn() }) }
 }
 
 describe('host prompt section', () => {
@@ -49,6 +49,14 @@ describe('host prompt section', () => {
     expect(promptText({ ...DEFAULTS, inlineImages: false })).not.toContain('Illustrating answers')
     expect(promptText({ ...DEFAULTS, citations: false })).not.toContain('Citing web sources')
     expect(promptText({ ...DEFAULTS, citations: false, inlineImages: false })).toBe('')
+  })
+
+  it('teaches the model to embed dsh-image-gen pictures by job reference', () => {
+    const text = promptText(DEFAULTS)
+    expect(text).toContain('### Generated images')
+    expect(text).toContain('](genimg:<id>)')
+    expect(text).toContain('background: true')
+    expect(promptText({ ...DEFAULTS, inlineImages: false })).not.toContain('genimg:')
   })
 
   it('registers the section and re-renders it when the settings page changes our entry', () => {
@@ -87,5 +95,31 @@ describe('host prompt section', () => {
   it('accepts plain (non-volatile) config from older hosts', () => {
     const host = mountHost({ citations: true, inlineImages: true, maxImages: 3 })
     expect((host.section.mock.calls[0] as unknown as [{ text: string }])[0].text).toContain('decide how many')
+  })
+})
+
+describe('dsh-image-gen results', () => {
+  const JOB = '0f8c2a4e-1b2c-4d3e-8f90-123456789abc'
+  const result = { isError: false, content: [{ type: 'text', text: `Generated one image. Inline image reference: genimg:${JOB}.` }, { type: 'image' }] }
+
+  it('appends the embed instruction to generated-image results only', () => {
+    const decision = withEmbedHint({ name: 'paint_image' }, result, { kind: 'accept' })
+    const hint = decision.content?.at(-1)
+    expect(decision.content).toHaveLength(3)
+    expect(hint?.text).toContain(`![<short caption>](genimg:${JOB})`)
+    expect(withEmbedHint({ name: 'web_search' }, result, { kind: 'accept' })).toEqual({ kind: 'accept' })
+    expect(withEmbedHint({ name: 'paint_image' }, { ...result, isError: true }, { kind: 'accept' })).toEqual({ kind: 'accept' })
+    expect(withEmbedHint({ name: 'paint_image' }, { isError: false, content: [{ type: 'text', text: 'no reference' }] }, { kind: 'accept' })).toEqual({ kind: 'accept' })
+    const blocked = { kind: 'block', content: [] }
+    expect(withEmbedHint({ name: 'paint_image' }, result, blocked)).toBe(blocked)
+  })
+
+  it('hooks tools/post-execute and follows the inline images switch', async () => {
+    const { refs, values } = liveConfig()
+    const host = mountHost(refs)
+    const listener = host.listeners['tools/post-execute']?.[0] as unknown as (exec: unknown, result: unknown, next: () => Promise<unknown>) => Promise<{ content?: unknown[] }>
+    expect((await listener({ name: 'paint_images' }, result, async () => ({ kind: 'accept' }))).content).toHaveLength(3)
+    values.inlineImages = false
+    expect(await listener({ name: 'paint_images' }, result, async () => ({ kind: 'accept' }))).toEqual({ kind: 'accept' })
   })
 })

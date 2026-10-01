@@ -71,6 +71,15 @@ Enable the picture tools in dsh-free-search's settings, then ask for example:
 - "Tell me about the Eiffel Tower with a few pictures, and cite your sources"
 - "What happened with DeepSeek in the last week? Cite each item"
 
+## With dsh-image-gen
+
+With [@copylee/dsh-image-gen](https://github.com/copylee711/dsh-image-gen) installed, generated pictures show up inside the reply instead of as a file:
+
+- Its tool results carry a `genimg:<job id>` reference; this plugin asks the model (in the tool result and the system prompt) to embed it as `![caption](genimg:<job id>)`.
+- Pictures keep the aspect ratio they were generated at, uncropped; click to zoom.
+- During a background generation (`background: true`, e.g. "explain Gauss's law with a diagram") a placeholder at the same ratio stands in while the text keeps streaming. It turns into the picture when the job finishes, even after the reply ended, or shows the failure reason.
+- Galleries keep each picture's aspect ratio instead of cropping them to one height.
+
 ## Install
 
 > This plugin is a **superset** of dsh-better-markdown and shadows it at a lower slot priority. Remove dsh-better-markdown afterwards to avoid shipping a second bundle:
