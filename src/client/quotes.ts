@@ -5,7 +5,7 @@
  * blockquote when the message is sent.
  */
 import { useSyncExternalStore } from 'react'
-import type { InputTriggerSource, ReferenceInsert } from './dsh-input.ts'
+import type { InputState, InputTriggerSource, Occurrence, ReferenceInsert } from './dsh-input.ts'
 import { label } from './labels.ts'
 
 export const QUOTE_SOURCE = 'better-display-quote'
@@ -22,17 +22,38 @@ export function blockquote(markdown: string): string {
   return markdown.trim().split('\n').map(line => line.trim() === '' ? '>' : `> ${line}`).join('\n')
 }
 
-/** Short chip label: the quote's first words without Markdown punctuation. */
-export function quoteLabel(markdown: string): string {
-  const plain = markdown
-    .replace(/^\s*(?:[-*+]|\d+[.)]|>)\s+/gm, '')
-    .replace(/\$\$?[\s\S]*?\$\$?/g, '∑')
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/[`*_~>#|]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-  const head = [...plain].slice(0, 14).join('')
-  return `${label('quote')}：${head}${[...plain].length > 14 ? '…' : ''}`
+/** Chip label: "Quote n", the n-th quote chip in the draft (the card above shows the content). */
+export function quoteLabel(n: number): string {
+  return `${label('quote')} ${String(n)}`
+}
+
+/**
+ * Number for the next quote chip: one past the highest "Quote n" already in the draft, so labels
+ * stay distinct while chips are removed and added.
+ */
+export function nextQuoteNumber(occurrences: readonly Occurrence[]): number {
+  let highest = 0
+  for (const occurrence of occurrences) {
+    if (occurrence.source !== QUOTE_SOURCE) continue
+    const n = Number(/(\d+)\s*$/.exec(occurrence.label)?.[1] ?? 0)
+    highest = Math.max(highest, n)
+  }
+  return highest + 1
+}
+
+/**
+ * The editor range of one chip. Occurrence offsets count the chip's expanded clipboard text, the
+ * editor's own coordinates count every chip as one character; the space inserted after the chip
+ * goes with it.
+ */
+export function chipSpan(input: Pick<InputState, 'draft' | 'occurrences'>, target: Occurrence): { start: number, end: number } {
+  let shift = 0
+  for (const occurrence of input.occurrences) {
+    if (occurrence.offset >= target.offset) break
+    shift += occurrence.length - 1
+  }
+  const start = target.offset - shift
+  return { start, end: start + (input.draft[target.offset + target.length] === ' ' ? 2 : 1) }
 }
 
 export class QuoteStore {
@@ -87,8 +108,8 @@ export class QuoteStore {
   }
 
   /** The chip inserted for a quote. */
-  reference(quote: Quote): ReferenceInsert {
-    return { source: QUOTE_SOURCE, ref: quote.ref, label: quoteLabel(quote.markdown), clipboardText: `\n${blockquote(quote.markdown)}\n` }
+  reference(quote: Quote, n: number): ReferenceInsert {
+    return { source: QUOTE_SOURCE, ref: quote.ref, label: quoteLabel(n), clipboardText: `\n${blockquote(quote.markdown)}\n` }
   }
 
   /** Input-trigger source: no menu entries, chips open the card editor, sending writes a blockquote. */

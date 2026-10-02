@@ -68,9 +68,17 @@ describe('selectionToMarkdown', () => {
     const glyphs = row.querySelector('.katex-html')!
     const range = document.createRange()
     range.setStart(glyphs.firstChild!, 0)
-    const tail = [...row.querySelectorAll('.text-node')].at(-1)!.firstChild!.firstChild!
+    const tail = [...row.querySelectorAll('.text-node')].at(-1)!.firstChild!
     range.setEnd(tail, 3)
     expect(selectionToMarkdown(range).markdown).toBe(String.raw`$\frac{a}{b}$ 后文`)
+  })
+
+  it('keeps a block formula a block when the selection lies inside it', async () => {
+    const row = await mount('前文\n\n$$\nB=\\frac{\\mu_0 I}{2\\pi a}\n$$\n\n后文')
+    const glyphs = row.querySelector('.katex-display .katex-html')!
+    const range = document.createRange()
+    range.selectNodeContents(glyphs)
+    expect(selectionToMarkdown(range).markdown).toBe('$$\nB=\\frac{\\mu_0 I}{2\\pi a}\n$$')
   })
 
   it('refuses selections outside one message row', async () => {

@@ -5,7 +5,7 @@
 import { imageFile } from './attach-image.ts'
 import type { ConversationService, InputActions, SessionsService } from './dsh-input.ts'
 import { label } from './labels.ts'
-import type { QuoteStore } from './quotes.ts'
+import { nextQuoteNumber, type QuoteStore } from './quotes.ts'
 import type { QuotedImage } from './selection-markdown.ts'
 
 export class Composer {
@@ -35,7 +35,7 @@ export class Composer {
     if (state.phase === 'adjudicating' || state.phase === 'submitting') throw new Error(label('composerBusy'))
     if (markdown.trim() !== '') {
       const quote = this.quotes.add(sessionId, markdown)
-      const reference = this.quotes.reference(quote)
+      const reference = this.quotes.reference(quote, nextQuoteNumber(state.occurrences))
       const span = actions?.captureInsertion() ?? { start: state.draft.length, end: state.draft.length, draftRev: state.draftRev }
       if (!input.insertReference(reference, span)) {
         // The caret moved under us: append the readable quote as text instead.

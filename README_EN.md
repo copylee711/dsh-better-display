@@ -92,6 +92,11 @@ Select text or pictures in a reply to get a small toolbar:
 
 These replace [dsh-btw](https://github.com/MichengAI/dsh-btw); with both installed you get two toolbars, so uninstall dsh-btw. The "Selection toolbar" setting turns both features off.
 
+## Your messages, rendered
+
+- Your own message bubbles render Markdown: formulas, quotes, lists and code. Plain prose stays as is, and messages with @file or /skill references keep the built-in bubble. Turn it off with "Render my messages".
+- When a draft contains formulas or Markdown, a "Preview formatting" button above the composer shows it rendered.
+
 ## Install
 
 > This plugin is a **superset** of dsh-better-markdown and shadows it at a lower slot priority. Remove dsh-better-markdown afterwards to avoid shipping a second bundle:

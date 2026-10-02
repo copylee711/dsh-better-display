@@ -30,7 +30,7 @@ function mountHost(config: unknown) {
 
 describe('host prompt section', () => {
   it('declares a schema DSH can turn into a settings form', () => {
-    expect(resolveConfig(Config({}))).toEqual({ citations: true, inlineImages: true, imageCount: 'auto', maxImages: 8, sectionOrder: 600, selectionTools: true })
+    expect(resolveConfig(Config({}))).toEqual({ citations: true, inlineImages: true, imageCount: 'auto', maxImages: 8, sectionOrder: 600, selectionTools: true, userMarkdown: true })
     expect(() => Config({ maxImages: 50 })).toThrow()
     expect(() => Config({ imageCount: 'many' } as never)).toThrow()
   })

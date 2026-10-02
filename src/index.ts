@@ -38,6 +38,8 @@ export interface Config {
   sectionOrder: number
   /** Toolbar over selected reply text: add it to the chat as a quote, or ask a side question. */
   selectionTools: boolean
+  /** Render Markdown and formulas in the user's own message bubbles. */
+  userMarkdown: boolean
 }
 
 export const DEFAULTS: Config = {
@@ -47,6 +49,7 @@ export const DEFAULTS: Config = {
   maxImages: 8,
   sectionOrder: 600,
   selectionTools: true,
+  userMarkdown: true,
 }
 
 export const Config = z.object({
@@ -72,6 +75,10 @@ export const Config = z.object({
   selectionTools: z.boolean().default(DEFAULTS.selectionTools).volatile().i18n({
     'zh-CN': { $description: '选中工具条：在回答中选中文字或图片后，可「添加到对话」（引用卡片，公式保持可读、可编辑）或「旁问」（不打扰主对话的一次性提问）。' },
     'en-US': { $description: 'Selection toolbar: select reply text or pictures to add them to the chat as an editable quote card, or ask a one-off side question.' },
+  }),
+  userMarkdown: z.boolean().default(DEFAULTS.userMarkdown).volatile().i18n({
+    'zh-CN': { $description: '用户消息渲染：自己发出的消息气泡也按 Markdown 显示（公式、引用、列表、代码）。' },
+    'en-US': { $description: 'User messages: render Markdown (formulas, quotes, lists, code) in your own message bubbles.' },
   }),
   sectionOrder: z.number().default(DEFAULTS.sectionOrder).volatile().i18n({
     'zh-CN': { $description: '高级：system prompt 中本段的排序（越大越靠后）。' },
@@ -111,6 +118,7 @@ export function resolveConfig(raw: unknown): Config {
     maxImages: Math.min(20, Math.max(1, Math.floor(maxImages))),
     sectionOrder: pick('sectionOrder', value => typeof value === 'number' && Number.isFinite(value)),
     selectionTools: pick('selectionTools', value => typeof value === 'boolean'),
+    userMarkdown: pick('userMarkdown', value => typeof value === 'boolean'),
   }
 }
 
@@ -261,7 +269,7 @@ export function apply(ctx: Context, config: unknown): void {
     route(STATE_PATH, async (_req, res) => {
       const subagents = ctx.get('subagents') as Parameters<typeof sideQuestionsAvailable>[0]
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
-      res.end(JSON.stringify({ selectionTools: current().selectionTools, sideQuestions: current().selectionTools && sideQuestionsAvailable(subagents) }))
+      res.end(JSON.stringify({ selectionTools: current().selectionTools, sideQuestions: current().selectionTools && sideQuestionsAvailable(subagents), userMarkdown: current().userMarkdown }))
     })
   })
 

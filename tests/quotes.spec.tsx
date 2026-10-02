@@ -6,7 +6,7 @@ import { removeCustomComponents } from 'markstream-react'
 import { apply } from '../src/client/index.ts'
 import { Composer } from '../src/client/composer.ts'
 import type { InputActions, InputState } from '../src/client/dsh-input.ts'
-import { QUOTE_SOURCE, QuoteStore, blockquote, quoteLabel } from '../src/client/quotes.ts'
+import { QUOTE_SOURCE, QuoteStore, blockquote, chipSpan, nextQuoteNumber, quoteLabel } from '../src/client/quotes.ts'
 import { createComposerDock } from '../src/client/selection-ui.tsx'
 
 const TEX = String.raw`$\frac{\mu_0}{4\pi}$`
@@ -25,7 +25,10 @@ afterEach(() => {
 describe('quote codec', () => {
   it('serializes to a blockquote and labels chips readably', async () => {
     expect(blockquote(`第一行 ${TEX}\n\n第二行`)).toBe(`> 第一行 ${TEX}\n>\n> 第二行`)
-    expect(quoteLabel(`**毕奥–萨伐尔** 定律 ${TEX} 描述电流元产生的磁场`)).toBe('引用：毕奥–萨伐尔 定律 ∑ 描述…')
+    expect(quoteLabel(2)).toBe('引用 2')
+    const chip = (offset: number, length: number, label: string, source = QUOTE_SOURCE) => ({ occurrenceId: offset, source, ref: 'r', offset, length, label })
+    expect(nextQuoteNumber([])).toBe(1)
+    expect(nextQuoteNumber([chip(0, 5, '引用 1'), chip(9, 5, '引用 3'), chip(20, 4, 'a.ts', 'file')])).toBe(4)
     const store = new QuoteStore()
     const quote = store.add('s1', '原文')
     const source = store.source()
@@ -51,6 +54,17 @@ function fakeInput(draft = '问题：') {
   }
 }
 
+describe('chipSpan', () => {
+  it('maps a chip from clipboard offsets to editor offsets', () => {
+    // Editor text "ab<chip1> c<chip2> d": chip1 expands to 6 characters, chip2 to 4.
+    const one = { occurrenceId: 1, source: QUOTE_SOURCE, ref: 'a', offset: 2, length: 6, label: '引用 1' }
+    const two = { occurrenceId: 2, source: QUOTE_SOURCE, ref: 'b', offset: 10, length: 4, label: '引用 2' }
+    const draft = 'ab' + 'x'.repeat(6) + ' c' + 'y'.repeat(4) + 'd'
+    expect(chipSpan({ draft, occurrences: [one, two] }, one)).toEqual({ start: 2, end: 4 })
+    expect(chipSpan({ draft, occurrences: [one, two] }, two)).toEqual({ start: 5, end: 6 })
+  })
+})
+
 describe('Composer.add', () => {
   it('inserts a quote chip at the caret and attaches pictures', async () => {
     const input = fakeInput()
@@ -64,6 +78,7 @@ describe('Composer.add', () => {
     expect(reference.source).toBe(QUOTE_SOURCE)
     expect(reference.clipboardText).toBe(`\n> 公式 ${TEX}\n`)
     expect(span).toEqual({ start: 1, end: 1, draftRev: 3 })
+    expect((reference as unknown as { label: string }).label).toBe('引用 1')
     expect(createDrafts.mock.calls[0]?.[1][0]).toMatchObject({ name: '示意图.png', type: 'image/png' })
     expect(input.addAttachments).toHaveBeenCalledWith(['d0'])
     expect(input.focus).toHaveBeenCalled()
@@ -98,10 +113,10 @@ describe('quote cards', () => {
     const composer = new Composer(store, () => ({}))
     const Dock = createComposerDock({ composer, side: () => undefined, state: async () => ({ selectionTools: false, sideQuestions: false }) })
     const insertText = vi.fn(() => true)
-    const input: InputState = { draft: '问题', draftRev: 7, phase: 'plain', attachmentIds: [], occurrences: [{ occurrenceId: 1, source: QUOTE_SOURCE, ref: quote.ref, offset: 2, length: 8, label: '引用：公式' }] }
+    const input: InputState = { draft: '问题', draftRev: 7, phase: 'plain', attachmentIds: [], occurrences: [{ occurrenceId: 1, source: QUOTE_SOURCE, ref: quote.ref, offset: 2, length: 8, label: '引用 1' }] }
     const view = render(<Dock session={{ sessionId: 's1' }} input={input} inputActions={{ insertText } as unknown as InputActions} />)
     await waitFor(() => { expect(view.container.querySelector('.dsh-better-display__quote-card .katex')).not.toBeNull() })
-    expect(view.container.querySelector('.dsh-better-display__quote-label')?.textContent).toBe('引用：公式')
+    expect(view.container.querySelector('.dsh-better-display__quote-label')?.textContent).toBe('引用 1')
 
     fireEvent.click(view.getByText('编辑'))
     const editor = view.container.querySelector('textarea')!
@@ -111,7 +126,7 @@ describe('quote cards', () => {
     expect(store.get(quote.ref)?.markdown).toBe('改写后的引用')
 
     fireEvent.click(view.getByText('移除'))
-    expect(insertText).toHaveBeenCalledWith('', { start: 2, end: 10, draftRev: 7 })
+    expect(insertText).toHaveBeenCalledWith('', { start: 2, end: 3, draftRev: 7 })
     expect(store.get(quote.ref)).toBeUndefined()
   })
 })

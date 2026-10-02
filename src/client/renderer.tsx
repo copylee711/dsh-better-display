@@ -1,6 +1,7 @@
-import { Component, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Component, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import type { ComponentType, ReactNode } from 'react'
+import katex from 'katex'
 import MarkdownRender, { MarkdownCodeBlockNode } from 'markstream-react'
 import type { NodeComponentProps } from 'markstream-react'
 import type { CodeBlockNode, ImageNode, InlineCodeNode, LinkNode } from 'stream-markdown-parser'
@@ -150,6 +151,26 @@ function figureCaption(node: ImageNode): string {
   return [node.alt, node.title].filter(part => part !== null && part !== '').join(' · ')
 }
 
+/** `$…$` / `$$…$$` spans of a caption (an escaped `\$` is a literal dollar). */
+const CAPTION_MATH = /(?<!\\)\$\$([\s\S]+?)\$\$|(?<!\\)\$((?:\\.|[^$\\])+?)\$/g
+
+/** Image caption text with its formulas typeset (captions are plain text in Markdown). */
+export function CaptionText({ text }: { text: string }) {
+  const parts = useMemo(() => {
+    const out: Array<{ text: string } | { html: string }> = []
+    let last = 0
+    for (const match of text.matchAll(CAPTION_MATH)) {
+      if (match.index > last) out.push({ text: text.slice(last, match.index) })
+      const tex = (match[1] ?? match[2] ?? '').trim()
+      out.push({ html: katex.renderToString(tex, { throwOnError: false, displayMode: false, output: 'htmlAndMathml' }) })
+      last = match.index + match[0].length
+    }
+    if (last < text.length) out.push({ text: text.slice(last) })
+    return out.map(part => 'text' in part ? { text: part.text.replace(/\\\$/g, '$') } : part)
+  }, [text])
+  return <>{parts.map((part, index) => 'text' in part ? part.text : <span key={index} dangerouslySetInnerHTML={{ __html: part.html }} />)}</>
+}
+
 /**
  * A dsh-image-gen job: a placeholder at the expected aspect ratio while it renders (it may
  * finish after the reply), then the image at its real size, or the failure reason.
@@ -174,7 +195,7 @@ function GeneratedImageNode({ node }: NodeComponentProps<ImageNode>) {
           style={{ aspectRatio: ratio }}
           onClick={() => { setZoomed(true) }}
         />
-        {caption !== '' && <span className="dsh-better-display__caption">{caption}</span>}
+        {caption !== '' && <span className="dsh-better-display__caption"><CaptionText text={caption} /></span>}
         {zoomed && <Lightbox src={src} alt={node.alt} filePath={job.path} onClose={close} />}
       </span>
     )
@@ -193,7 +214,7 @@ function GeneratedImageNode({ node }: NodeComponentProps<ImageNode>) {
           {failed ? `${labels.failed}${job.error === undefined ? '' : `: ${job.error}`}` : labels.generating}
         </span>
       </span>
-      {caption !== '' && <span className="dsh-better-display__caption">{caption}</span>}
+      {caption !== '' && <span className="dsh-better-display__caption"><CaptionText text={caption} /></span>}
     </span>
   )
 }
@@ -225,7 +246,7 @@ function PlainImageNode({ node }: NodeComponentProps<ImageNode>) {
         onError={() => { setFailed(true) }}
         onClick={() => { setZoomed(true) }}
       />
-      {caption !== '' && <span className="dsh-better-display__caption">{caption}</span>}
+      {caption !== '' && <span className="dsh-better-display__caption"><CaptionText text={caption} /></span>}
       {zoomed && <Lightbox src={src} alt={node.alt} filePath={remoteImage(node.src) === undefined ? localPath(node.src) : undefined} onClose={close} />}
     </span>
   )
@@ -369,6 +390,61 @@ export function SourcesPanel({ sources }: { sources: readonly Citation[] }) {
 function sourcesLabel(): string {
   const lang = document.documentElement.lang || navigator.language
   return lang.toLowerCase().startsWith('zh') ? '来源' : 'Sources'
+}
+
+/** How long a newly streamed piece of text takes to fade in (keep in sync with styles.css). */
+const TEXT_FADE_MS = 180
+
+interface FadeSegment { id: number, start: number, born: number }
+
+/** Text each text node last showed, by markstream index key (survives remounts within a reply). */
+const shownText = new WeakMap<object, Map<string, string>>()
+
+function now(): number {
+  return typeof performance === 'undefined' ? Date.now() : performance.now()
+}
+
+/**
+ * Text run that fades in what streams into it, claude.ai style. Every newly arrived piece gets
+ * its own span keyed by its start, so a running fade is never restarted or cut short by the next
+ * piece, and pieces fold back into plain text once faded. Unlike markstream's built-in text node
+ * this updates in the same commit (no effect + setState round), so text shows one frame earlier
+ * and each frame renders once.
+ */
+export function DshTextNode({ node, ctx, indexKey, children }: NodeComponentProps<{ type: 'text', content?: string, center?: boolean, raw: string }> & { indexKey?: unknown, children?: ReactNode }) {
+  const text = String(node.content ?? '')
+  const className = `text-node whitespace-pre-wrap break-words${node.center === true ? ' text-node-center' : ''}`
+  const state = useRef<{ text: string | undefined, segments: FadeSegment[], next: number }>({ text: undefined, segments: [], next: 0 })
+  const key = indexKey === undefined || indexKey === null || indexKey === '' ? undefined : String(indexKey)
+  const scope = ctx === undefined || ctx === null ? undefined : ctx as object
+  let store = scope === undefined ? undefined : shownText.get(scope)
+  if (scope !== undefined && store === undefined) {
+    store = new Map()
+    shownText.set(scope, store)
+  }
+  const current = state.current
+  const time = now()
+  // A remounted node (its paragraph changed shape) continues from what its predecessor showed.
+  const previous = current.text ?? (key === undefined ? text : store?.get(key) ?? text)
+  if (previous !== text) {
+    if (text.startsWith(previous) && previous !== '') current.segments.push({ id: current.next++, start: previous.length, born: time })
+    else if (!text.startsWith(previous)) current.segments = []
+    else current.segments.push({ id: current.next++, start: 0, born: time })
+  }
+  current.text = text
+  if (key !== undefined) store?.set(key, text)
+  current.segments = current.segments.filter(segment => time - segment.born < TEXT_FADE_MS + 60 && segment.start < text.length)
+  if (children !== undefined && children !== null) return <span className={className}>{children}</span>
+  const segments = current.segments
+  if (segments.length === 0) return <span className={className}>{text}</span>
+  return (
+    <span className={className}>
+      {text.slice(0, segments[0]!.start)}
+      {segments.map((segment, index) => (
+        <span key={segment.id} className="dsh-better-display__text-fade">{text.slice(segment.start, segments[index + 1]?.start ?? text.length)}</span>
+      ))}
+    </span>
+  )
 }
 
 /** Preserve DSH's URL promotion and settled file-mention behavior for inline code. */
@@ -556,14 +632,21 @@ function detectDshDark(): boolean {
   }
 }
 
-/** Reactive DSH dark-mode state; re-renders when the shell flips theme tokens or attributes. */
-export function useDshIsDark(): boolean {
-  const [dark, setDark] = useState(detectDshDark)
-  useEffect(() => {
+/** One theme watcher shared by every rendered reply (a long chat has hundreds of them). */
+const darkTheme = (() => {
+  let value: boolean | undefined
+  const listeners = new Set<() => void>()
+  let stop: (() => void) | undefined
+  const start = () => {
     let timer: ReturnType<typeof setTimeout> | undefined
     const schedule = () => {
       if (timer !== undefined) clearTimeout(timer)
-      timer = setTimeout(() => setDark(detectDshDark()), 80)
+      timer = setTimeout(() => {
+        const next = detectDshDark()
+        if (next === value) return
+        value = next
+        for (const listener of listeners) listener()
+      }, 80)
     }
     try {
       const observer = new MutationObserver(schedule)
@@ -574,10 +657,32 @@ export function useDshIsDark(): boolean {
         if (timer !== undefined) clearTimeout(timer)
         observer.disconnect()
       }
-    } catch { /* MutationObserver unavailable */ }
-    return undefined
-  }, [])
-  return dark
+    } catch {
+      return undefined
+    }
+  }
+  return {
+    get: () => value ??= detectDshDark(),
+    subscribe(listener: () => void) {
+      listeners.add(listener)
+      if (listeners.size === 1) {
+        value = detectDshDark()
+        stop = start()
+      }
+      return () => {
+        listeners.delete(listener)
+        if (listeners.size === 0) {
+          stop?.()
+          stop = undefined
+        }
+      }
+    },
+  }
+})()
+
+/** Reactive DSH dark-mode state; re-renders when the shell flips theme tokens or attributes. */
+export function useDshIsDark(): boolean {
+  return useSyncExternalStore(darkTheme.subscribe, darkTheme.get, darkTheme.get)
 }
 
 /**
@@ -586,15 +691,16 @@ export function useDshIsDark(): boolean {
  * few hundred milliseconds behind the source and catches up when the backlog grows.
  */
 const SMOOTH_STREAMING = Object.freeze({
-  minCharsPerSecond: 60,
-  maxCharsPerSecond: 1500,
-  targetLatencyMs: 300,
-  catchUpLatencyMs: 150,
-  catchUpThreshold: 400,
+  minCharsPerSecond: 120,
+  maxCharsPerSecond: 2400,
+  targetLatencyMs: 240,
+  catchUpLatencyMs: 140,
+  catchUpThreshold: 500,
   maxCommitFps: 60,
   startDelayMs: 0,
-  maxCharsPerCommit: 24,
-  flushOnFinish: true,
+  maxCharsPerCommit: 40,
+  // The backlog drains at the paced rate after the reply ends instead of appearing in one jump.
+  flushOnFinish: false,
 })
 
 /** Markstream wrapper configured for untrusted assistant output. */
@@ -606,9 +712,10 @@ export const MarkstreamMarkdown = memo(function MarkstreamMarkdown({ text, strea
   const isDark = useDshIsDark()
   const content = useMemo(() => escapeCurrencyDollars(normalizeListIndent(text), streaming), [text, streaming])
   // Text already on hand when the view mounts (e.g. switching back to a running session) shows
-  // at once; only what arrives afterwards is paced.
+  // at once; only what arrives afterwards is paced. Pacing stays on once a stream was seen, so
+  // the end of the reply drains smoothly instead of jumping to the full text.
   const [paced, setPaced] = useState(false)
-  useEffect(() => { setPaced(true) }, [])
+  useEffect(() => { if (streaming) setPaced(true) }, [streaming])
   const codeBlockProps = useMemo(() => ({
     fileMentions: streaming ? undefined : fileMentions,
   }), [fileMentions, streaming])
@@ -621,7 +728,7 @@ export const MarkstreamMarkdown = memo(function MarkstreamMarkdown({ text, strea
         customId={CUSTOM_COMPONENT_SCOPE}
         htmlPolicy="escape"
         fade={false}
-        smoothStreaming={streaming && paced}
+        smoothStreaming={paced}
         smoothStreamingOptions={SMOOTH_STREAMING}
         viewportPriority={false}
         codeBlockStream={streaming}
@@ -739,9 +846,9 @@ type RenderMessageImages = (owner: { images: readonly { attachment: unknown }[],
 /** How long the body keeps easing its height after a reply settles (sources panel, final flush). */
 const SETTLE_GRACE_MS = 600
 /** Time constant of the height glide; ~95% of a new line is revealed after 3x this. */
-const GLIDE_MS = 70
+const GLIDE_MS = 45
 /** Speed limit of the glide, so a whole formula or table landing at once still slides in. */
-const GLIDE_MAX_PX_PER_MS = 0.9
+const GLIDE_MAX_PX_PER_MS = 1.6
 
 /**
  * Grow the reply smoothly while it streams. DSH keeps the conversation pinned to the bottom by

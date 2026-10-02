@@ -12,6 +12,7 @@ import {
   DshImageNode,
   DshInlineCodeNode,
   DshLinkNode,
+  DshTextNode,
 } from './renderer.tsx'
 import { DisplaySettings, LOCALE_NS, ROW_CONFIG_KEY, en, zh } from './settings.tsx'
 import { Composer, setActiveComposer } from './composer.ts'
@@ -20,6 +21,7 @@ import { isChinese } from './labels.ts'
 import { QuoteStore } from './quotes.ts'
 import { createComposerDock, type DockState } from './selection-ui.tsx'
 import { SIDE_CLOSE_COMMAND, SIDE_RUN_COMMAND, SideQuestions } from './side-questions.ts'
+import { createUserMessageView, userMarkdownSetting } from './user-message.tsx'
 
 const CUSTOM_COMPONENT_SCOPE = 'dsh-better-display'
 
@@ -33,6 +35,8 @@ export const ASSISTANT_STEP_PRIORITY = -110
 interface SlotService {
   inject(name: string, setup: () => () => void): void
   register(entry: { name: string, key?: string, id?: string, order?: number, priority?: number, locale?: string }, component: unknown): () => void
+  /** Registered entries of a slot (an inspection surface; missing on some hosts). */
+  entries?(name: string): ReadonlyArray<{ component: unknown, options: { key?: string, priority?: number } }>
 }
 
 /** `remote.commands` of dsh-api-remotes: runs a slash command line in a session. */
@@ -50,7 +54,7 @@ async function readState(): Promise<DockState> {
   const response = await fetch(new URL(STATE_ROUTE, document.baseURI).href, { credentials: 'same-origin', cache: 'no-store' })
   if (!response.ok || !(response.headers.get('content-type') ?? '').includes('json')) return { selectionTools: true, sideQuestions: false }
   const body = await response.json() as Partial<DockState>
-  return { selectionTools: body.selectionTools !== false, sideQuestions: body.sideQuestions === true }
+  return { selectionTools: body.selectionTools !== false, sideQuestions: body.sideQuestions === true, userMarkdown: body.userMarkdown !== false }
 }
 
 /** Dictionary registry of the web client. */
@@ -72,6 +76,7 @@ export function apply(ctx: Context): void {
       image: DshImageNode,
       inline_code: DshInlineCodeNode,
       link: DshLinkNode,
+      text: DshTextNode,
     })
     return () => { removeCustomComponents(CUSTOM_COMPONENT_SCOPE) }
   }, 'dsh-better-display: markstream component policy')
@@ -84,6 +89,26 @@ export function apply(ctx: Context): void {
     // ui-chat owns assistant-step and its `chat` locale namespace (DSH 0.1.7+).
     locale: 'chat',
   }, BetterAssistantNodeView))
+
+  // The user's own bubbles as Markdown, drawn by the built-in bubble it shadows.
+  if (typeof slots.entries === 'function') {
+    const UserMessageView = createUserMessageView(kind => {
+      const shadowed = (slots.entries?.('conversation.chat.node') ?? [])
+        .filter(entry => entry.options.key === kind && entry.component !== UserMessageView)
+        .sort((a, b) => (a.options.priority ?? 0) - (b.options.priority ?? 0))[0]
+      return shadowed?.component as ReturnType<Parameters<typeof createUserMessageView>[0]>
+    })
+    slots.inject('conversation.chat.node', () => {
+      const disposers = ['user', 'steering'].map(key => slots.register({ name: 'conversation.chat.node', key, priority: ASSISTANT_STEP_PRIORITY, locale: 'chat' }, UserMessageView))
+      return () => { for (const dispose of disposers) dispose() }
+    })
+    ctx.effect(() => {
+      const refresh = () => { void readState().then(state => { userMarkdownSetting.set(state.userMarkdown !== false) }, () => {}) }
+      refresh()
+      window.addEventListener('focus', refresh)
+      return () => { window.removeEventListener('focus', refresh) }
+    }, 'dsh-better-display: user message setting')
+  }
 
   // Quotes, pictures and side questions from transcript selections (composer dock).
   const services: { conversation?: ConversationService, sessions?: SessionsService } = {}

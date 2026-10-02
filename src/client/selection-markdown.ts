@@ -42,7 +42,11 @@ export function quotableRow(range: Range, target?: EventTarget | null): Element 
 /** Grow the range so formulas cut by its ends are quoted whole. */
 function wholeFormulas(range: Range): Range {
   const expanded = range.cloneRange()
-  const formula = (node: Node) => elementOf(node)?.closest('.katex-display, .katex') ?? null
+  // The display wrapper first: a range inside a block formula must keep it so the quote stays `$$…$$`.
+  const formula = (node: Node) => {
+    const element = elementOf(node)
+    return element?.closest('.katex-display') ?? element?.closest('.katex') ?? null
+  }
   const first = formula(range.startContainer)
   const last = formula(range.endContainer)
   if (first) expanded.setStartBefore(first)

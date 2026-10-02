@@ -101,6 +101,11 @@ dsh --profile web
 
 这两个功能取代了 [dsh-btw](https://github.com/MichengAI/dsh-btw)，两者同时安装会出现两个工具条，建议卸载 dsh-btw。设置里的「选中工具条」可以整体关闭。
 
+## 我的消息也渲染
+
+- 自己发出的消息气泡按 Markdown 显示：公式、引用块、列表、代码都能正常渲染。纯文字消息保持原样；带 @文件、/技能 引用的消息仍用原生气泡显示。设置里的「渲染我的消息」可以关闭。
+- 输入框里写了公式或 Markdown 时，上方会出现「预览格式」按钮，点开能看到渲染效果。
+
 ## 安装
 
 > 本插件是 dsh-better-markdown 的**超集**，并以更低的 slot priority 覆盖它。安装本插件后建议移除 dsh-better-markdown，避免多打包一份：

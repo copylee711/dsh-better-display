@@ -136,3 +136,18 @@ describe('genimg references', () => {
     plugin.dispose()
   })
 })
+
+describe('image captions', () => {
+  it('typeset the formulas in alt text', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ status: 'pending', width: 4, height: 3 })))
+    const plugin = mountPlugin()
+    const alt = String.raw`无限长直导线：电流元 $I\,\mathrm dz$、位矢 $\mathbf r$ 与场点 $P$ 的几何关系`
+    const view = render(<MarkstreamMarkdown text={`![${alt}](genimg:${JOB})`} streaming={false} />)
+    await waitFor(() => { expect(view.container.querySelector('.dsh-better-display__caption')).not.toBeNull() })
+    const caption = view.container.querySelector('.dsh-better-display__caption')!
+    expect(caption.querySelectorAll('.katex')).toHaveLength(3)
+    expect(caption.textContent).toContain('无限长直导线：电流元')
+    expect(caption.textContent).not.toContain('$')
+    plugin.dispose()
+  })
+})

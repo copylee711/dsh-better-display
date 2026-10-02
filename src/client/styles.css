@@ -976,6 +976,17 @@
   border-left: 3px solid var(--dsw-alias-state-business-primary, #4d6bfe);
 }
 
+/* The quote chip in the input box: a quote mark instead of the generic "@" marker. */
+[data-composer-chip="better-display-quote"] [class*="marker"] {
+  display: none;
+}
+
+[data-composer-chip="better-display-quote"] [class*="label"]::before {
+  content: "\201C";
+  margin-right: 2px;
+  font-weight: 600;
+}
+
 .dsh-better-display__quote-head,
 .dsh-better-display__bubble-head {
   display: flex;
@@ -1135,4 +1146,100 @@
 .dsh-better-display__ask-actions .dsh-better-display__primary:hover:not(:disabled) {
   background: var(--dsw-alias-state-business-primary, #4d6bfe);
   filter: brightness(1.08);
+}
+
+/* The user's own bubble rendered as Markdown (user-message.tsx): the built-in text box hides,
+   its rendered twin takes the bubble's look. */
+.dsh-better-display__user [data-better-display-replaced] {
+  display: none;
+}
+
+.dsh-better-display__user-markdown,
+.dsh-better-display__user-fallback {
+  white-space: normal;
+  min-width: 0;
+}
+
+.dsh-better-display__user-markdown .markstream-react,
+.dsh-better-display__user-fallback .markstream-react {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.dsh-better-display__user-markdown > :first-child > :first-child,
+.dsh-better-display__user-markdown .node-slot:first-child > * {
+  margin-top: 0;
+}
+
+.dsh-better-display__user-markdown .node-slot:last-child > * {
+  margin-bottom: 0;
+}
+
+.dsh-better-display__user-markdown .katex-display,
+.dsh-better-display__user-markdown pre,
+.dsh-better-display__user-markdown table {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.dsh-better-display__user-markdown blockquote {
+  margin: 0 0 6px;
+  padding-left: 10px;
+  border-left: 3px solid var(--dsw-alias-border-l1, rgb(127 127 127 / 0.35));
+  color: var(--dsw-alias-label-secondary, inherit);
+}
+
+.dsh-better-display__user-fallback {
+  margin-left: auto;
+  max-width: 80%;
+  padding: 10px 16px;
+  border-radius: 18px;
+  background: var(--dsw-alias-bg-l2, rgb(127 127 127 / 0.1));
+}
+
+/* Each newly streamed piece of text fades in (DshTextNode; duration matches TEXT_FADE_MS). */
+@keyframes dsh-better-display-text-in {
+  from { opacity: 0; }
+}
+
+.dsh-better-display__text-fade {
+  animation: dsh-better-display-text-in 180ms cubic-bezier(0.2, 0, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dsh-better-display__text-fade {
+    animation: none;
+  }
+}
+
+/* Rendered preview of a Markdown / TeX draft, above the input box. */
+.dsh-better-display__draft-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.dsh-better-display__draft-preview-toggle {
+  padding: 1px 10px;
+  border-radius: 999px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 20px;
+  background: var(--dsw-alias-bg-base, #fff);
+  box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l1, rgb(127 127 127 / 0.2));
+}
+
+.dsh-better-display__draft-preview-toggle:hover {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.dsh-better-display__draft-preview-body {
+  align-self: stretch;
+  max-height: 240px;
+  overflow: auto;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-base, #fff);
+  box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l1, rgb(127 127 127 / 0.2));
 }

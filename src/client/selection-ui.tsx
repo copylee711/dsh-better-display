@@ -8,7 +8,8 @@ import { createPortal } from 'react-dom'
 import type { Composer } from './composer.ts'
 import type { InputActions, InputDockProps, Occurrence } from './dsh-input.ts'
 import { label } from './labels.ts'
-import { QUOTE_SOURCE, useQuoteStore } from './quotes.ts'
+import { QUOTE_SOURCE, chipSpan, useQuoteStore } from './quotes.ts'
+import { hardBreaks, looksLikeMarkdown } from './user-message.tsx'
 import { MarkstreamMarkdown } from './renderer.tsx'
 import { quotableRow, selectionToMarkdown } from './selection-markdown.ts'
 import type { SelectionQuote } from './selection-markdown.ts'
@@ -18,6 +19,7 @@ import { useSideAnswers, type SideQuestions } from './side-questions.ts'
 export interface DockState {
   selectionTools: boolean
   sideQuestions: boolean
+  userMarkdown?: boolean
 }
 
 interface DockContext {
@@ -206,7 +208,7 @@ function SideBubbles({ side, sessionId, onQuote }: { side: SideQuestions, sessio
 }
 
 /** One attached quote: rendered preview, or its Markdown source while editing. */
-function QuoteCard({ occurrence, composer, actions, draftRev }: { occurrence: Occurrence, composer: Composer, actions: InputActions | undefined, draftRev: number }) {
+function QuoteCard({ occurrence, input, composer, actions }: { occurrence: Occurrence, input: InputDockProps['input'], composer: Composer, actions: InputActions | undefined }) {
   useQuoteStore(composer.quotes)
   const quote = composer.quotes.get(occurrence.ref)
   const editing = composer.quotes.editing === occurrence.ref
@@ -219,7 +221,10 @@ function QuoteCard({ occurrence, composer, actions, draftRev }: { occurrence: Oc
     composer.quotes.edit(undefined)
   }
   const remove = () => {
-    actions?.insertText('', { start: occurrence.offset, end: occurrence.offset + occurrence.length, draftRev })
+    if (actions?.insertText('', { ...chipSpan(input, occurrence), draftRev: input.draftRev }) !== true) {
+      composer.notify(quote.sessionId, label('removeFailed'))
+      return
+    }
     composer.quotes.delete(quote.ref)
   }
   return (
@@ -258,7 +263,48 @@ function QuoteCards({ input, composer, actions }: { input: InputDockProps['input
   if (occurrences.length === 0) return null
   return (
     <div className="dsh-better-display__quote-cards">
-      {occurrences.map(occurrence => <QuoteCard key={occurrence.occurrenceId} occurrence={occurrence} composer={composer} actions={actions} draftRev={input.draftRev} />)}
+      {occurrences.map(occurrence => <QuoteCard key={occurrence.occurrenceId} occurrence={occurrence} input={input} composer={composer} actions={actions} />)}
+    </div>
+  )
+}
+
+const PREVIEW_KEY = 'dsh-better-display:draft-preview'
+
+/** The draft's own words: quote chips (expanded in `draft`) are shown by their cards instead. */
+export function draftWords(input: Pick<InputDockProps['input'], 'draft' | 'occurrences'>): string {
+  let out = ''
+  let at = 0
+  for (const occurrence of input.occurrences) {
+    if (occurrence.source !== QUOTE_SOURCE) continue
+    out += input.draft.slice(at, occurrence.offset)
+    at = occurrence.offset + occurrence.length
+  }
+  return (out + input.draft.slice(at)).trim()
+}
+
+/** Rendered preview of a draft written in Markdown / TeX (the input box itself stays plain text). */
+function DraftPreview({ input }: { input: InputDockProps['input'] }) {
+  const [open, setOpen] = useState(() => {
+    try { return localStorage.getItem(PREVIEW_KEY) === '1' } catch { return false }
+  })
+  const words = draftWords(input)
+  if (!looksLikeMarkdown(words)) return null
+  const toggle = () => {
+    setOpen(value => {
+      try { localStorage.setItem(PREVIEW_KEY, value ? '0' : '1') } catch { /* storage unavailable */ }
+      return !value
+    })
+  }
+  return (
+    <div className="dsh-better-display__draft-preview" data-open={open || undefined}>
+      <button type="button" className="dsh-better-display__draft-preview-toggle" aria-expanded={open} onClick={toggle}>
+        {open ? label('hidePreview') : label('preview')}
+      </button>
+      {open && (
+        <div className="dsh-better-display__draft-preview-body">
+          <MarkstreamMarkdown text={hardBreaks(words)} streaming={false} />
+        </div>
+      )}
     </div>
   )
 }
@@ -302,6 +348,7 @@ export function createComposerDock(context: DockContext) {
         )}
         {side !== undefined && <SideBubbles side={side} sessionId={sessionId} onQuote={markdown => { add({ markdown, images: [] }) }} />}
         <QuoteCards input={props.input} composer={composer} actions={actions} />
+        <DraftPreview input={props.input} />
       </div>
     )
   }

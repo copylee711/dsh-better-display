@@ -68,7 +68,7 @@ describe('settings page', () => {
   })
 
   it('fills defaults for unset values', () => {
-    expect(readValues(undefined)).toEqual({ citations: true, inlineImages: true, imageCount: 'auto', maxImages: 8, selectionTools: true })
+    expect(readValues(undefined)).toEqual({ citations: true, inlineImages: true, imageCount: 'auto', maxImages: 8, selectionTools: true, userMarkdown: true })
     expect(readValues({ maxImages: 99, imageCount: 'x' })).toMatchObject({ maxImages: 20, imageCount: 'auto' })
   })
 })
