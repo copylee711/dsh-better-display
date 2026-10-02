@@ -1,18 +1,21 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { installBlankSelection, pointAt } from '../src/client/blank-select.ts'
+import { installBlankSelection, spanTo } from '../src/client/blank-select.ts'
 
 function reply() {
-  document.body.innerHTML = '<div data-chat-flow-kind="assistant-step"><p>前文</p><div class="katex-display"><span class="katex">x</span></div><p>后文</p></div>'
+  document.body.innerHTML = '<div data-chat-flow-kind="assistant-step"><p>前文</p><div class="katex-display"><span class="katex">x</span></div><p>后文</p><p><span class="dsh-better-display__figure"><img alt=""></span></p></div>'
   const row = document.querySelector('[data-chat-flow-kind]')!
   const block = row.querySelector('.katex-display')!
-  const formula = row.querySelector('.katex')!
-  // The block spans the column; the formula sits in its middle (x 200-300).
-  block.getBoundingClientRect = () => ({ left: 0, width: 500, top: 100, height: 40 }) as DOMRect
-  formula.getBoundingClientRect = () => ({ left: 200, width: 100, top: 100, height: 40 }) as DOMRect
-  document.elementFromPoint = vi.fn(() => block)
-  return { row, block }
+  const figure = row.querySelector('.dsh-better-display__figure')!
+  return { row, block, figure, first: row.querySelector('p')!.firstChild!, after: row.querySelectorAll('p')[1]!.firstChild! }
+}
+
+function drag(target: Element, under: (x: number) => Element) {
+  document.elementFromPoint = vi.fn((x: number) => under(x))
+  const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true, clientX: 0, clientY: 0, button: 0, detail: 1 })
+  target.dispatchEvent(down)
+  return down
 }
 
 afterEach(() => {
@@ -20,36 +23,39 @@ afterEach(() => {
   document.getSelection()?.removeAllRanges()
 })
 
-describe('blank-space selection', () => {
-  it('anchors beside a formula block on the pointer\'s side', () => {
-    const { row, block } = reply()
-    expect(pointAt(20, 120, row)).toEqual({ node: row, offset: 1 })
-    expect(pointAt(480, 120, row)).toEqual({ node: row, offset: 2 })
-    expect(block.parentNode).toBe(row)
+describe('atom-aware selection', () => {
+  it('takes a block whole as soon as a drag reaches it, in either direction', () => {
+    const { row, block, figure, first, after } = reply()
+    const blockStart = { node: row, offset: 1 }
+    const blockEnd = { node: row, offset: 2 }
+    // Started on text before the block, now touching it: through its end.
+    expect(spanTo({ caret: { node: first, offset: 1 } }, { atom: block })).toEqual([{ node: first, offset: 1 }, blockEnd])
+    // Started on text after it: back to its start.
+    expect(spanTo({ caret: { node: after, offset: 1 } }, { atom: block })).toEqual([{ node: after, offset: 1 }, blockStart])
+    // Started on the block itself: the block alone, then grown from its far side.
+    expect(spanTo({ atom: block }, { atom: block })).toEqual([blockStart, blockEnd])
+    expect(spanTo({ atom: block }, { caret: { node: after, offset: 1 } })).toEqual([blockStart, { node: after, offset: 1 }])
+    expect(spanTo({ atom: block }, { caret: { node: first, offset: 0 } })).toEqual([blockEnd, { node: first, offset: 0 }])
+    expect(spanTo({ atom: block }, { atom: figure })).toEqual([blockStart, { node: figure.parentNode, offset: 1 }])
   })
 
-  it('selects from blank space beside a formula to the pointer', () => {
-    const { row, block } = reply()
+  it('selects a block from a drag starting on its blank space', () => {
+    const { block } = reply()
     const remove = installBlankSelection()
-    const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true, clientX: 20, clientY: 120, button: 0, detail: 1 })
-    block.dispatchEvent(down)
+    const down = drag(block, () => block)
     expect(down.defaultPrevented).toBe(true)
-    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 480, clientY: 120 }))
-    document.dispatchEvent(new MouseEvent('mouseup', { clientX: 480, clientY: 120 }))
-    const range = document.getSelection()!.getRangeAt(0)
-    expect([range.startContainer, range.startOffset, range.endContainer, range.endOffset]).toEqual([row, 1, row, 2])
-    expect(range.toString()).toBe('x')
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 5, clientY: 0, buttons: 1 }))
+    document.dispatchEvent(new MouseEvent('mouseup', { clientX: 5, clientY: 0 }))
+    expect(document.getSelection()!.toString()).toBe('x')
     remove()
   })
 
   it('leaves text, links and pictures to the browser', () => {
     const { row } = reply()
-    row.querySelector('p')!.innerHTML = '<a href="#">链接</a><img alt="">'
+    row.querySelector('p')!.innerHTML = '<a href="#">链接</a>'
     const remove = installBlankSelection()
     for (const target of [row.querySelector('a')!, row.querySelector('img')!]) {
-      const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true, clientX: 20, clientY: 120, button: 0, detail: 1 })
-      target.dispatchEvent(down)
-      expect(down.defaultPrevented).toBe(false)
+      expect(drag(target, () => target).defaultPrevented).toBe(false)
     }
     remove()
   })

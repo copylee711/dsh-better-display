@@ -1,14 +1,15 @@
 /**
- * Start a text selection from blank space beside a formula block or a picture. Chromium places no
- * caret in the empty part of a centred KaTeX block or next to an inline figure, so a drag
- * starting there selected nothing and users had to start on nearby text (and over-select). Here
- * such a drag is anchored just before or after the block (whichever side the pointer is on) and
- * the selection follows the pointer like a native one. Drags that start on text, links, controls,
- * code or the picture itself (dragging a picture still attaches it) are left to the browser.
+ * Selecting formula blocks and pictures by touching them. Chromium places no caret in the empty
+ * part of a centred KaTeX block or next to an inline figure, so a drag starting there selected
+ * nothing, and a drag into one only took it once the pointer had crossed it. Here formula blocks
+ * and figures are atoms: a drag that reaches one selects it whole, and a drag may start on the
+ * blank space around one (the selection then grows from that block). Drags that start on text
+ * stay native until they reach an atom; links, controls, code and dragging the picture itself
+ * (which still attaches it) are left to the browser.
  */
 import { MESSAGE_ROW } from './selection-markdown.ts'
 
-/** Blocks a selection cannot start inside of: taken whole, from their start or end. */
+/** Blocks selected whole as soon as a drag reaches them. */
 const ATOMIC = '.katex-display, .math-block, .dsh-better-display__figure'
 const NATIVE = 'img, a, button, input, textarea, select, [contenteditable]:not([contenteditable="false"]), pre, code, .dsh-better-display__code'
 
@@ -31,58 +32,108 @@ function elementOf(node: Node): Element | null {
   return node.nodeType === Node.ELEMENT_NODE ? node as Element : node.parentElement
 }
 
-/** The boundary just before or just after `block`, on the pointer's side. */
-function beside(block: Element, x: number): Point | undefined {
-  const parent = block.parentNode
-  if (parent === null) return undefined
-  const index = Array.prototype.indexOf.call(parent.childNodes, block) as number
-  const rect = block.getBoundingClientRect()
-  // A full-width formula block: compare with its content, not its (blank) box.
-  const content = block.querySelector('.katex') ?? block
-  const box = content.getBoundingClientRect()
-  const middle = box.width > 0 ? box.left + box.width / 2 : rect.left + rect.width / 2
-  return { node: parent, offset: x < middle ? index : index + 1 }
+/** The outermost atom holding `element` inside `row` (a figure inside a formula block, etc.). */
+function atomOf(element: Element | null | undefined, row: Element): Element | undefined {
+  let atom: Element | undefined
+  for (let current = element?.closest(ATOMIC); current && row.contains(current); current = current.parentElement?.closest(ATOMIC)) atom = current
+  return atom
 }
 
-/** Selection point for a pointer position inside `row`. */
-export function pointAt(x: number, y: number, row: Element): Point | undefined {
-  const hit = document.elementFromPoint(x, y)
-  const atom = hit?.closest(ATOMIC)
-  if (atom && row.contains(atom)) return beside(atom, x)
+function edge(atom: Element, after: boolean): Point {
+  const parent = atom.parentNode!
+  const index = Array.prototype.indexOf.call(parent.childNodes, atom) as number
+  return { node: parent, offset: after ? index + 1 : index }
+}
+
+/** Whether `a` comes before `b` in the document. */
+function precedes(a: Point, b: Point): boolean {
+  const range = document.createRange()
+  range.setStart(a.node, a.offset)
+  return range.comparePoint(b.node, b.offset) > 0
+}
+
+/** What the pointer is over inside `row`: an atom, or a caret position in text. */
+export function hitAt(x: number, y: number, row: Element): { atom: Element } | { caret: Point } | undefined {
+  const atom = atomOf(document.elementFromPoint(x, y), row)
+  if (atom) return { atom }
   const caret = caretAt(x, y)
   if (caret === undefined || !row.contains(caret.node)) return undefined
-  const inside = elementOf(caret.node)?.closest(ATOMIC)
-  return inside && row.contains(inside) ? beside(inside, x) : caret
+  const inside = atomOf(elementOf(caret.node), row)
+  return inside ? { atom: inside } : { caret }
 }
 
-/** Whether a mouse-down at this spot is one the browser cannot start a selection from. */
-function blankStart(event: MouseEvent, target: Element, row: Element): boolean {
-  if (target.closest(NATIVE)) return false
-  if (target.closest(ATOMIC)) return true
-  // On text the browser does it; on a row's or paragraph's blank part it may not.
-  const caret = caretAt(event.clientX, event.clientY)
-  return caret === undefined || caret.node.nodeType !== Node.TEXT_NODE || !row.contains(caret.node) || target === row
+/**
+ * The selection from a drag's start to the pointer, atoms taken whole.
+ * @param start - where the drag started: an atom, or a caret position.
+ */
+export function spanTo(start: { atom: Element } | { caret: Point }, hit: { atom: Element } | { caret: Point }): [Point, Point] {
+  if ('atom' in start) {
+    if ('atom' in hit && hit.atom === start.atom) return [edge(start.atom, false), edge(start.atom, true)]
+    const target = 'atom' in hit ? edge(hit.atom, false) : hit.caret
+    const forward = precedes(edge(start.atom, false), target)
+    const base = edge(start.atom, !forward)
+    return [base, 'atom' in hit ? edge(hit.atom, forward) : hit.caret]
+  }
+  if ('atom' in hit) return [start.caret, edge(hit.atom, precedes(start.caret, edge(hit.atom, false)))]
+  return [start.caret, hit.caret]
 }
 
-/** Install the blank-space drag selection; returns its remover. */
+/** Install atom-aware drag selection; returns its remover. */
 export function installBlankSelection(): () => void {
   const down = (event: MouseEvent) => {
     if (event.button !== 0 || event.detail > 1 || event.shiftKey || event.altKey || event.defaultPrevented) return
     const target = event.target instanceof Element ? event.target : null
     const row = target?.closest(MESSAGE_ROW)
-    if (target === null || row === null || row === undefined || !blankStart(event, target, row)) return
-    const anchor = pointAt(event.clientX, event.clientY, row)
-    if (anchor === undefined) return
+    if (target === null || row === null || row === undefined || target.closest(NATIVE)) return
     const selection = document.getSelection()
     if (selection === null) return
-    // Keep the browser from starting its own (empty) selection or a drag of the block.
-    event.preventDefault()
-    selection.setBaseAndExtent(anchor.node, anchor.offset, anchor.node, anchor.offset)
+    const atom = atomOf(target, row)
+    const caret = caretAt(event.clientX, event.clientY)
+    const onText = caret !== undefined && caret.node.nodeType === Node.TEXT_NODE && row.contains(caret.node) && target !== row
+    // On text the browser starts the selection; elsewhere (blank space, a block) we do.
+    let start: { atom: Element } | { caret: Point } | undefined
+    if (atom) start = { atom }
+    else if (!onText) start = hitAt(event.clientX, event.clientY, row)
+    if (start !== undefined) {
+      event.preventDefault()
+      const [base] = spanTo(start, start)
+      selection.setBaseAndExtent(base.node, base.offset, base.node, base.offset)
+    }
+    let native: Point | undefined
+    let pending = 0
+    const apply = (x: number, y: number) => {
+      const hit = hitAt(x, y, row)
+      if (hit === undefined) return
+      if (start === undefined) {
+        // A native drag: only step in once it reaches an atom.
+        if (!('atom' in hit)) return
+        native ??= selection.anchorNode === null ? undefined : { node: selection.anchorNode, offset: selection.anchorOffset }
+        if (native === undefined || !row.contains(native.node)) return
+      }
+      const [base, extent] = spanTo(start ?? { caret: native! }, hit)
+      selection.setBaseAndExtent(base.node, base.offset, extent.node, extent.offset)
+    }
+    let last: [number, number] | undefined
     const move = (moved: MouseEvent) => {
-      const focus = pointAt(moved.clientX, moved.clientY, row)
-      if (focus !== undefined) selection.setBaseAndExtent(anchor.node, anchor.offset, focus.node, focus.offset)
+      if ((moved.buttons & 1) === 0) return
+      if (start !== undefined) {
+        apply(moved.clientX, moved.clientY)
+        return
+      }
+      // The browser updates its own selection after this event; adjust once it has.
+      last = [moved.clientX, moved.clientY]
+      cancelAnimationFrame(pending)
+      pending = requestAnimationFrame(() => {
+        pending = 0
+        apply(moved.clientX, moved.clientY)
+      })
     }
     const up = () => {
+      // Settle a pending adjustment before the toolbar reads the selection.
+      if (pending !== 0 && last !== undefined) {
+        cancelAnimationFrame(pending)
+        apply(...last)
+      }
       document.removeEventListener('mousemove', move, true)
       document.removeEventListener('mouseup', up, true)
     }
