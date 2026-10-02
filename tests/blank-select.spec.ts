@@ -60,3 +60,19 @@ describe('atom-aware selection', () => {
     remove()
   })
 })
+
+describe('table cells', () => {
+  it('start a drag from a cell\'s padding in that cell', () => {
+    document.body.innerHTML = '<div data-chat-flow-kind="assistant-step"><table><tr><td>甲</td><td>乙</td></tr></table></div>'
+    const [first, second] = [...document.querySelectorAll('td')]
+    first!.getBoundingClientRect = () => ({ left: 0, width: 100, top: 0, height: 20 }) as DOMRect
+    document.elementFromPoint = vi.fn(() => second!)
+    const remove = installBlankSelection()
+    const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true, clientX: 2, clientY: 5, button: 0, detail: 1 })
+    first!.dispatchEvent(down)
+    expect(down.defaultPrevented).toBe(true)
+    const range = document.getSelection()!.getRangeAt(0)
+    expect([range.startContainer, range.startOffset]).toEqual([first, 0])
+    remove()
+  })
+})

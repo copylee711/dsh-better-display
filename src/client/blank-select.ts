@@ -5,7 +5,8 @@
  * and figures are atoms: a drag that reaches one selects it whole, and a drag may start on the
  * blank space around one (the selection then grows from that block). Drags that start on text
  * stay native until they reach an atom; links, controls, code and dragging the picture itself
- * (which still attaches it) are left to the browser.
+ * (which still attaches it) are left to the browser. A drag from a table cell's padding starts
+ * in that cell (Chromium would anchor it at the table's start and select the whole table).
  */
 import { MESSAGE_ROW } from './selection-markdown.ts'
 
@@ -78,6 +79,23 @@ export function spanTo(start: { atom: Element } | { caret: Point }, hit: { atom:
   return [start.caret, hit.caret]
 }
 
+/** The table cell on the pointer's line nearest to it, for a press beside a table (its wrapper's padding). */
+function cellNear(target: Element, x: number, y: number): Element | null {
+  if (target.querySelector('table') === null) return null
+  let best: Element | null = null
+  let distance = Infinity
+  for (const cell of target.querySelectorAll('td, th')) {
+    const rect = cell.getBoundingClientRect()
+    if (y < rect.top || y > rect.bottom) continue
+    const gap = x < rect.left ? rect.left - x : x > rect.right ? x - rect.right : 0
+    if (gap < distance) {
+      distance = gap
+      best = cell
+    }
+  }
+  return best
+}
+
 /** Install atom-aware drag selection; returns its remover. */
 export function installBlankSelection(): () => void {
   const down = (event: MouseEvent) => {
@@ -92,7 +110,14 @@ export function installBlankSelection(): () => void {
     const onText = caret !== undefined && caret.node.nodeType === Node.TEXT_NODE && row.contains(caret.node) && target !== row
     // On text the browser starts the selection; elsewhere (blank space, a block) we do.
     let start: { atom: Element } | { caret: Point } | undefined
+    const cell = target.closest('td, th') ?? cellNear(target, event.clientX, event.clientY)
     if (atom) start = { atom }
+    else if (cell !== null && !onText) {
+      // A table cell's padding: Chromium would anchor at the table's start (selecting it all);
+      // start at the cell's own start or end instead.
+      const rect = cell.getBoundingClientRect()
+      start = { caret: { node: cell, offset: event.clientX < rect.left + rect.width / 2 ? 0 : cell.childNodes.length } }
+    } else if (target.closest('table') !== null) return
     else if (!onText) start = hitAt(event.clientX, event.clientY, row)
     if (start !== undefined) {
       event.preventDefault()

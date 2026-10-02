@@ -78,6 +78,20 @@ function SelectionBar({ onAdd, onAsk, canAsk }: {
     }
     const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') setCaptured(undefined) }
     const collapsed = () => { if (document.getSelection()?.isCollapsed !== false) setCaptured(undefined) }
+    // Scrolling keeps the toolbar: it follows the selection (and hides while that is off-screen).
+    let frame = 0
+    const follow = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const selection = document.getSelection()
+        if (selection === null || selection.rangeCount === 0 || selection.isCollapsed) {
+          setCaptured(undefined)
+          return
+        }
+        const rect = selection.getRangeAt(0).getBoundingClientRect()
+        setCaptured(current => current === undefined ? undefined : { ...current, rect })
+      })
+    }
     // Drags from blank space beside formulas and pictures select too (blank-select.ts).
     const removeBlankSelection = installBlankSelection()
     document.addEventListener('mouseup', update)
@@ -85,7 +99,7 @@ function SelectionBar({ onAdd, onAsk, canAsk }: {
     document.addEventListener('mousedown', dismiss)
     document.addEventListener('keydown', escape)
     document.addEventListener('selectionchange', collapsed)
-    document.addEventListener('scroll', dismiss, true)
+    document.addEventListener('scroll', follow, true)
     window.addEventListener('blur', dismiss)
     window.addEventListener('resize', dismiss)
     return () => {
@@ -95,7 +109,8 @@ function SelectionBar({ onAdd, onAsk, canAsk }: {
       document.removeEventListener('mousedown', dismiss)
       document.removeEventListener('keydown', escape)
       document.removeEventListener('selectionchange', collapsed)
-      document.removeEventListener('scroll', dismiss, true)
+      cancelAnimationFrame(frame)
+      document.removeEventListener('scroll', follow, true)
       window.removeEventListener('blur', dismiss)
       window.removeEventListener('resize', dismiss)
     }
@@ -108,6 +123,11 @@ function SelectionBar({ onAdd, onAsk, canAsk }: {
     }
     const { width, height } = bar.current.getBoundingClientRect()
     const rect = captured.rect
+    // The selection scrolled out of view: hide until it is back.
+    if (rect.bottom < 0 || rect.top > window.innerHeight) {
+      setPosition(undefined)
+      return
+    }
     const above = rect.top - height - BAR_GAP
     const top = above >= BAR_GAP ? above : Math.min(window.innerHeight - height - BAR_GAP, rect.bottom + BAR_GAP)
     const left = Math.min(Math.max(BAR_GAP, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - BAR_GAP)
