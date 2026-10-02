@@ -21,10 +21,11 @@ export interface Quote {
 
 /**
  * The quote as sent: its pictures travel as image attachments, so in the text each one is
- * replaced by a short label instead of a URL the model cannot look at.
+ * replaced by a short label instead of a URL the model cannot look at. Parentheses, not square
+ * brackets: Markstream reads `[…]` holding TeX as display math.
  */
 export function sendableMarkdown(markdown: string): string {
-  return markdown.replace(/!\[([^\]]*)\]\([^)]*\)/g, (_match, alt: string) => `[${label('quotedImage')}${alt.trim() === '' ? '' : `：${alt.trim()}`}]`)
+  return markdown.replace(/!\[([^\]]*)\]\([^)]*\)/g, (_match, alt: string) => `（${label('quotedImage')}${alt.trim() === '' ? '' : `：${alt.trim()}`}）`)
 }
 
 /** `> `-prefixed Markdown, one quote line per source line. */

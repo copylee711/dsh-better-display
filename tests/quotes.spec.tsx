@@ -26,7 +26,7 @@ describe('quote codec', () => {
   it('serializes to a blockquote and labels chips readably', async () => {
     expect(blockquote(`第一行 ${TEX}\n\n第二行`)).toBe(`> 第一行 ${TEX}\n>\n> 第二行`)
     expect(quoteLabel(2)).toBe('引用 2')
-    expect(sendableMarkdown('看 ![示意图](https://a/b.png) 和 ![](x)')).toBe('看 [图片：示意图] 和 [图片]')
+    expect(sendableMarkdown('看 ![示意图](https://a/b.png) 和 ![](x)')).toBe('看 （图片：示意图） 和 （图片）')
     const chip = (offset: number, length: number, label: string, source = QUOTE_SOURCE) => ({ occurrenceId: offset, source, ref: 'r', offset, length, label })
     expect(nextQuoteNumber([])).toBe(1)
     expect(nextQuoteNumber([chip(0, 5, '引用 1'), chip(9, 5, '引用 3'), chip(20, 4, 'a.ts', 'file')])).toBe(4)

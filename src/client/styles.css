@@ -708,13 +708,19 @@
   font-family: inherit;
 }
 
-/* ---- Math: claude.ai-like size and rhythm ----
- * KaTeX defaults to 1.21em, which towers over 14px CJK body text; 1.1em keeps formulas legible
- * without shouting. Inline math sits on the text baseline (Markstream centres it, which makes
- * subscripts drift), and display math gets one compact margin instead of three stacked ones. */
+/* ---- Math: size and rhythm ----
+ * KaTeX's letters have a small x-height: at 1.1em an inline `r` or `a` looked a size smaller than
+ * the CJK characters around it, so inline math is close to KaTeX's own 1.21em. Display formulas
+ * stand alone and can be a touch smaller. Inline math sits on the text baseline (Markstream
+ * centres it, which makes subscripts drift), and display math gets one compact margin instead of
+ * three stacked ones. */
 
 .dsh-better-display__markdown .katex {
-  font-size: 1.1em;
+  font-size: 1.2em;
+}
+
+.dsh-better-display__markdown .katex-display > .katex {
+  font-size: 1.15em;
 }
 
 .dsh-better-display__markdown .math-inline {

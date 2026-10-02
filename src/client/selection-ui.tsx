@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ComponentType, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { installBlankSelection } from './blank-select.ts'
 import type { Composer } from './composer.ts'
 import type { InputActions, InputDockProps, Occurrence } from './dsh-input.ts'
 import { label } from './labels.ts'
@@ -77,6 +78,8 @@ function SelectionBar({ onAdd, onAsk, canAsk }: {
     }
     const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') setCaptured(undefined) }
     const collapsed = () => { if (document.getSelection()?.isCollapsed !== false) setCaptured(undefined) }
+    // Drags from blank space beside formulas and pictures select too (blank-select.ts).
+    const removeBlankSelection = installBlankSelection()
     document.addEventListener('mouseup', update)
     document.addEventListener('keyup', update)
     document.addEventListener('mousedown', dismiss)
@@ -86,6 +89,7 @@ function SelectionBar({ onAdd, onAsk, canAsk }: {
     window.addEventListener('blur', dismiss)
     window.addEventListener('resize', dismiss)
     return () => {
+      removeBlankSelection()
       document.removeEventListener('mouseup', update)
       document.removeEventListener('keyup', update)
       document.removeEventListener('mousedown', dismiss)
