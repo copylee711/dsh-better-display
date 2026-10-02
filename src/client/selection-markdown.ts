@@ -5,6 +5,7 @@
  * KaTeX's TeX annotation, structure as Markdown, and pictures are collected separately so they
  * can be attached as images.
  */
+import { partialTex } from './partial-tex.ts'
 
 /** Transcript rows a quote may come from (assistant replies and the user's own messages). */
 export const MESSAGE_ROW = '[data-chat-flow-kind="assistant-step"], [data-chat-flow-kind="assistant"], [data-chat-flow-kind="user"]'
@@ -54,7 +55,12 @@ function wholeFormulas(range: Range): Range {
   return expanded
 }
 
+/** Set on a formula cut by the selection: the TeX of just its selected part. */
+const PART_TEX = 'data-better-display-part-tex'
+
 function texOf(element: Element): string {
+  const part = element.getAttribute(PART_TEX)
+  if (part !== null) return part
   return element.querySelector('annotation[encoding="application/x-tex"]')?.textContent?.trim() ?? element.textContent ?? ''
 }
 
@@ -177,8 +183,26 @@ function tidy(markdown: string): string {
   return markdown.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
 }
 
-/** Markdown and pictures of a selection range (formulas cut by the range are taken whole). */
+/** Markdown and pictures of a selection range (a formula cut by the range: just its selected part). */
 export function selectionToMarkdown(range: Range): SelectionQuote {
+  // Formulas cut by the selection are quoted as just their selected part (partial-tex.ts).
+  const cut: Element[] = []
+  for (const node of [range.startContainer, range.endContainer]) {
+    const katex = elementOf(node)?.closest('.katex')
+    if (katex === null || katex === undefined || cut.includes(katex)) continue
+    const part = partialTex(katex, range)
+    if (part === undefined) continue
+    katex.setAttribute(PART_TEX, part)
+    cut.push(katex)
+  }
+  try {
+    return quoteOf(range)
+  } finally {
+    for (const katex of cut) katex.removeAttribute(PART_TEX)
+  }
+}
+
+function quoteOf(range: Range): SelectionQuote {
   const expanded = wholeFormulas(range)
   const walk: Walk = { images: [] }
   const ancestor = elementOf(expanded.commonAncestorContainer)

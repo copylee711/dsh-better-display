@@ -704,9 +704,9 @@ const SMOOTH_STREAMING = Object.freeze({
   targetLatencyMs: 240,
   catchUpLatencyMs: 140,
   catchUpThreshold: 500,
-  // No cap below the display: commits follow requestAnimationFrame, so 120/144 Hz screens get
-  // 120/144 small steps a second.
-  maxCommitFps: 240,
+  // 60 commits a second. Following a 120/144 Hz display instead was tried and felt less smooth:
+  // each commit re-parses and re-renders the reply, and at that rate frames get dropped unevenly.
+  maxCommitFps: 60,
   startDelayMs: 0,
   maxCharsPerCommit: 40,
   // The backlog drains at the paced rate after the reply ends instead of appearing in one jump.

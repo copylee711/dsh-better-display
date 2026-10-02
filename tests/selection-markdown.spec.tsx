@@ -81,6 +81,17 @@ describe('selectionToMarkdown', () => {
     expect(selectionToMarkdown(range).markdown).toBe('$$\nB=\\frac{\\mu_0 I}{2\\pi a}\n$$')
   })
 
+  it('quotes just the selected part of a formula', async () => {
+    const row = await mount('前文\n\n$$\nd\\Phi=\\mathbf E\\cdot d\\mathbf A=E\\,dA\\cos\\theta\n$$\n\n后文')
+    const atoms = [...row.querySelectorAll('.katex-display .katex-html > .katex-base > *')].filter(atom => !atom.classList.contains('katex-strut') && !atom.classList.contains('mspace'))
+    const range = document.createRange()
+    range.setStart(atoms[0]!, 0)
+    range.setEnd(atoms[3]!, atoms[3]!.childNodes.length)
+    expect(selectionToMarkdown(range).markdown).toBe('$$\nd\\Phi=\\mathbf{E}\n$$')
+    // The page keeps no trace of the cut.
+    expect(row.querySelector('[data-better-display-part-tex]')).toBeNull()
+  })
+
   it('refuses selections outside one message row', async () => {
     const row = await mount('段落')
     const outside = document.createElement('p')

@@ -38,6 +38,25 @@ function textOf(quote: SelectionQuote): string {
 interface Captured {
   quote: SelectionQuote
   rect: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'width'>
+  /** Visible part of the conversation (its scroller): the toolbar stays inside it. */
+  clip: Pick<DOMRect, 'top' | 'bottom'>
+}
+
+/** The visible box of the scroll area holding `node` (the window when there is none). */
+function clipOf(node: Node): Pick<DOMRect, 'top' | 'bottom'> {
+  for (let element = node.nodeType === Node.ELEMENT_NODE ? node as Element : node.parentElement; element !== null; element = element.parentElement) {
+    const overflow = getComputedStyle(element).overflowY
+    if ((overflow === 'auto' || overflow === 'scroll') && element.scrollHeight > element.clientHeight) {
+      const rect = element.getBoundingClientRect()
+      return { top: Math.max(0, rect.top), bottom: Math.min(window.innerHeight, rect.bottom) }
+    }
+  }
+  return { top: 0, bottom: window.innerHeight }
+}
+
+function rectOf(range: Range): Captured['rect'] {
+  // Ranges without layout (jsdom) fall back to the corner.
+  return typeof range.getBoundingClientRect === 'function' ? range.getBoundingClientRect() : { top: 0, bottom: 0, left: 0, width: 0 }
 }
 
 function captureSelection(target: EventTarget | null): Captured | undefined {
@@ -47,9 +66,7 @@ function captureSelection(target: EventTarget | null): Captured | undefined {
   if (quotableRow(range, target) === null) return undefined
   const quote = selectionToMarkdown(range)
   if (quote.markdown === '' && quote.images.length === 0) return undefined
-  // Ranges without layout (jsdom) fall back to the corner.
-  const rect = typeof range.getBoundingClientRect === 'function' ? range.getBoundingClientRect() : { top: 0, bottom: 0, left: 0, width: 0 }
-  return { quote, rect }
+  return { quote, rect: rectOf(range), clip: clipOf(range.commonAncestorContainer) }
 }
 
 const BAR_GAP = 8
@@ -88,8 +105,8 @@ function SelectionBar({ onAdd, onAsk, canAsk }: {
           setCaptured(undefined)
           return
         }
-        const rect = selection.getRangeAt(0).getBoundingClientRect()
-        setCaptured(current => current === undefined ? undefined : { ...current, rect })
+        const range = selection.getRangeAt(0)
+        setCaptured(current => current === undefined ? undefined : { ...current, rect: rectOf(range), clip: clipOf(range.commonAncestorContainer) })
       })
     }
     // Drags from blank space beside formulas and pictures select too (blank-select.ts).
@@ -122,14 +139,20 @@ function SelectionBar({ onAdd, onAsk, canAsk }: {
       return
     }
     const { width, height } = bar.current.getBoundingClientRect()
-    const rect = captured.rect
-    // The selection scrolled out of view: hide until it is back.
-    if (rect.bottom < 0 || rect.top > window.innerHeight) {
+    const { rect, clip } = captured
+    // Only the part of the selection inside the conversation's scroll area counts: the toolbar
+    // never covers the title bar or the composer, and hides while the selection is scrolled away.
+    const visibleTop = Math.max(rect.top, clip.top)
+    const visibleBottom = Math.min(rect.bottom, clip.bottom)
+    if (visibleBottom < visibleTop) {
       setPosition(undefined)
       return
     }
-    const above = rect.top - height - BAR_GAP
-    const top = above >= BAR_GAP ? above : Math.min(window.innerHeight - height - BAR_GAP, rect.bottom + BAR_GAP)
+    const above = visibleTop - height - BAR_GAP
+    const below = visibleBottom + BAR_GAP
+    const top = above >= clip.top + BAR_GAP
+      ? above
+      : below + height <= clip.bottom - BAR_GAP ? below : Math.max(clip.top + BAR_GAP, visibleTop + BAR_GAP)
     const left = Math.min(Math.max(BAR_GAP, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - BAR_GAP)
     setPosition({ left, top })
   }, [captured])
