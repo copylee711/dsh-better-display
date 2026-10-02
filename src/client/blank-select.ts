@@ -1,26 +1,27 @@
 /**
  * Selecting pictures and boxed formulas by touching them. Chromium places no caret in the empty
- * part of a centred KaTeX block or next to an inline figure, so a drag starting there selected
- * nothing, and a drag into one only took it once the pointer had crossed it. Here figures and
- * boxed (`oxed`) formula blocks are atoms: a drag that reaches one selects it whole, and a drag
- * may start on the blank space around one (the selection then grows from that block). Ordinary
- * formula blocks stay partly selectable: a drag from their blank space starts at their near edge
- * and then follows the pointer. Drags that start on text stay native until they reach an atom;
- * links, controls, code and dragging the picture itself (which still attaches it) are left to the
- * browser. A drag from a table cell's padding starts in that cell (Chromium would anchor it at
- * the table's start and select the whole table).
+ * part of a centred KaTeX block, a drag starting on a picture drags the picture instead of
+ * selecting, and a drag into either only took it once the pointer had crossed it. Here pictures
+ * and boxed (`\boxed`) formula blocks are atoms: a drag that reaches one selects it whole, and a
+ * drag may start on one or on the blank space around one (the selection then grows from it). A
+ * picture's caption is ordinary text. Ordinary formula blocks stay partly selectable: a drag from
+ * their blank space starts at their near edge and then follows the pointer. Drags that start on
+ * text stay native until they reach an atom; links, controls and code are left to the browser. A
+ * drag from a table cell's padding starts in that cell (Chromium would anchor it at the table's
+ * start and select the whole table).
  */
 import { MESSAGE_ROW } from './selection-markdown.ts'
 
 const FORMULA_BLOCK = '.katex-display, .math-block'
-const FIGURE = '.dsh-better-display__figure'
-const BLOCKS = `${FORMULA_BLOCK}, ${FIGURE}`
+/** A picture itself (not its caption), shown or still being generated. */
+const PICTURE = '.dsh-better-display__image, .dsh-better-display__image-placeholder'
+const BLOCKS = `${FORMULA_BLOCK}, ${PICTURE}`
 
 /** Selected whole as soon as a drag reaches it: a picture, or a formula block with a box. */
 function isAtom(block: Element): boolean {
-  return block.matches(FIGURE) || block.querySelector('.fbox') !== null
+  return block.matches(PICTURE) || block.querySelector('.fbox') !== null
 }
-const NATIVE = 'img, a, button, input, textarea, select, [contenteditable]:not([contenteditable="false"]), pre, code, .dsh-better-display__code'
+const NATIVE = 'img:not(.dsh-better-display__image), a, button, input, textarea, select, [contenteditable]:not([contenteditable="false"]), pre, code, .dsh-better-display__code'
 
 interface Point { node: Node, offset: number }
 
@@ -170,11 +171,20 @@ export function installBlankSelection(): () => void {
         apply(moved.clientX, moved.clientY)
       })
     }
-    const up = () => {
+    const up = (released: MouseEvent) => {
       // Settle a pending adjustment before the toolbar reads the selection.
       if (pending !== 0 && last !== undefined) {
         cancelAnimationFrame(pending)
         apply(...last)
+      }
+      // A drag that started on a picture must not also open its preview (the click that follows).
+      if (start !== undefined && Math.hypot(released.clientX - event.clientX, released.clientY - event.clientY) > 4) {
+        const swallow = (click: MouseEvent) => {
+          click.preventDefault()
+          click.stopPropagation()
+        }
+        document.addEventListener('click', swallow, { capture: true, once: true })
+        setTimeout(() => { document.removeEventListener('click', swallow, true) }, 0)
       }
       document.removeEventListener('mousemove', move, true)
       document.removeEventListener('mouseup', up, true)

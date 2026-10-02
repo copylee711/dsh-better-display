@@ -58,7 +58,10 @@ describe('selectionToMarkdown', () => {
       '',
       '> 引用',
       '',
-      '![埃菲尔铁塔](https://img.example/a.jpg)',
+      // The caption was selected too: quoted as text under the picture, not repeated as alt.
+      '![](https://img.example/a.jpg)',
+      '',
+      '埃菲尔铁塔',
     ].join('\n'))
     expect(quote.images).toEqual([{ src: 'https://img.example/a.jpg', alt: '埃菲尔铁塔' }])
   })
@@ -90,6 +93,21 @@ describe('selectionToMarkdown', () => {
     expect(selectionToMarkdown(range).markdown).toBe('$$\nd\\Phi=\\mathbf{E}\n$$')
     // The page keeps no trace of the cut.
     expect(row.querySelector('[data-better-display-part-tex]')).toBeNull()
+  })
+
+  it('quotes a picture with the part of its caption that is selected', async () => {
+    const row = await mount('![滑冰者收臂加速](https://img.example/s.png)')
+    const image = row.querySelector('img')!
+    const caption = row.querySelector('.dsh-better-display__caption')!
+    const range = document.createRange()
+    range.setStartBefore(image)
+    range.setEnd(caption.firstChild!, 3)
+    const quote = selectionToMarkdown(range)
+    expect(quote.markdown).toBe('![](https://img.example/s.png)\n\n滑冰者')
+    expect(quote.images).toEqual([{ src: 'https://img.example/s.png', alt: '滑冰者收臂加速' }])
+    // The picture alone keeps its caption as alt text.
+    range.setEndAfter(image)
+    expect(selectionToMarkdown(range).markdown).toBe('![滑冰者收臂加速](https://img.example/s.png)')
   })
 
   it('refuses selections outside one message row', async () => {

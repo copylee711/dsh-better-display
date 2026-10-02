@@ -12,7 +12,7 @@ export const MESSAGE_ROW = '[data-chat-flow-kind="assistant-step"], [data-chat-f
 /** Never quote out of editors, controls, hidden parts or tool output. */
 const BLOCKED = 'input, textarea, button, [contenteditable]:not([contenteditable="false"]), [hidden], [data-turn-process-inline]'
 /** Decoration that must not leak into a quote. */
-const SKIPPED = 'button, svg, style, script, .katex-html, .sr-only, [aria-hidden="true"]:not(.katex), .dsh-better-display__code-header, .dsh-better-display__caption, .table-node__resize-handle'
+const SKIPPED = 'button, svg, style, script, .katex-html, .sr-only, [aria-hidden="true"]:not(.katex), .dsh-better-display__code-header, .table-node__resize-handle'
 
 export interface QuotedImage {
   /** Absolute URL the picture is shown from. */
@@ -152,9 +152,14 @@ function serialize(node: Node, walk: Walk): string {
     const src = image.currentSrc || image.src
     if (src === '') return alt
     walk.images.push({ src, alt })
+    // The caption, when selected too, is quoted as its own text; the picture then needs no alt.
+    // (Its siblings: the figure itself is not cloned when the selection lies inside it.)
+    const captioned = [...(image.parentNode?.childNodes ?? [])].some(sibling => sibling instanceof Element && sibling.classList.contains('dsh-better-display__caption'))
     // Kept as a Markdown image so the quote card shows it in place (sending swaps in a label).
-    return `![${alt.replace(/[[\]]/g, '')}](${src.replace(/[ ()]/g, encodeURIComponent)})`
+    return `![${captioned ? '' : alt.replace(/[[\]]/g, '')}](${src.replace(/[ ()]/g, encodeURIComponent)})`
   }
+  // A picture's caption (selected as ordinary text): its own line under the picture.
+  if (node.classList.contains('dsh-better-display__caption')) return block(children(node, walk))
   if (tag === 'BR') return '\n'
   if (tag === 'HR') return block('---')
   if (/^H[1-6]$/.test(tag)) return block(`${'#'.repeat(Number(tag[1]))} ${children(node, walk).trim()}`)

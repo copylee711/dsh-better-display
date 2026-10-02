@@ -144,6 +144,8 @@
 .dsh-better-display__figure {
   display: inline-flex;
   flex-direction: column;
+  /* Picture and caption centred on each other (a caption wider than its picture, or the other way round). */
+  align-items: center;
   gap: 6px;
   max-width: 100%;
   margin: 4px 0;
@@ -163,6 +165,7 @@
 }
 
 .dsh-better-display__caption {
+  text-align: center;
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   line-height: 18px;

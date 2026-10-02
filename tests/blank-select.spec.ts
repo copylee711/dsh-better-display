@@ -96,3 +96,27 @@ describe('table cells', () => {
     remove()
   })
 })
+
+describe('pictures', () => {
+  it('select from a drag that starts on the picture, without opening its preview', () => {
+    document.body.innerHTML = '<div data-chat-flow-kind="assistant-step"><p>前文</p><span class="dsh-better-display__figure"><img class="dsh-better-display__image" alt="图"><span class="dsh-better-display__caption">图注</span></span></div>'
+    const image = document.querySelector('img')!
+    image.getBoundingClientRect = () => ({ left: 0, width: 400, top: 0, height: 300 }) as DOMRect
+    document.elementFromPoint = vi.fn(() => image)
+    const opened = vi.fn()
+    image.addEventListener('click', opened)
+    const remove = installBlankSelection()
+    const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true, clientX: 10, clientY: 10, button: 0, detail: 1 })
+    image.dispatchEvent(down)
+    expect(down.defaultPrevented).toBe(true)
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 100, buttons: 1 }))
+    document.dispatchEvent(new MouseEvent('mouseup', { clientX: 200, clientY: 100 }))
+    image.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    expect(opened).not.toHaveBeenCalled()
+    // The picture alone: its caption stays free text.
+    const range = document.getSelection()!.getRangeAt(0)
+    expect(range.cloneContents().querySelector('img')).not.toBeNull()
+    expect(range.toString()).toBe('')
+    remove()
+  })
+})
