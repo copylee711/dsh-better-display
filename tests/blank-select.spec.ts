@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { installBlankSelection, spanTo } from '../src/client/blank-select.ts'
 
 function reply() {
-  document.body.innerHTML = '<div data-chat-flow-kind="assistant-step"><p>前文</p><div class="katex-display"><span class="katex">x</span></div><p>后文</p><p><span class="dsh-better-display__figure"><img alt=""></span></p></div>'
+  document.body.innerHTML = '<div data-chat-flow-kind="assistant-step"><p>前文</p><div class="katex-display"><span class="katex">x<span class="fbox"></span></span></div><p>后文</p><p><span class="dsh-better-display__figure"><img alt=""></span></p></div>'
   const row = document.querySelector('[data-chat-flow-kind]')!
   const block = row.querySelector('.katex-display')!
   const figure = row.querySelector('.dsh-better-display__figure')!
@@ -57,6 +57,26 @@ describe('atom-aware selection', () => {
     for (const target of [row.querySelector('a')!, row.querySelector('img')!]) {
       expect(drag(target, () => target).defaultPrevented).toBe(false)
     }
+    remove()
+  })
+})
+
+describe('ordinary formulas', () => {
+  it('stay partly selectable: a drag from their blank space only starts at their edge', () => {
+    document.body.innerHTML = '<div data-chat-flow-kind="assistant-step"><p>前文</p><div class="katex-display"><span class="katex">x</span></div></div>'
+    const row = document.querySelector('[data-chat-flow-kind]')!
+    const block = row.querySelector('.katex-display')!
+    row.querySelector('.katex')!.getBoundingClientRect = () => ({ left: 200, width: 100, top: 0, height: 20 }) as DOMRect
+    document.elementFromPoint = vi.fn(() => block)
+    const remove = installBlankSelection()
+    const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true, clientX: 20, clientY: 5, button: 0, detail: 1 })
+    block.dispatchEvent(down)
+    expect(down.defaultPrevented).toBe(true)
+    // Hovering the formula does not take it whole (no box): the selection stays at its edge.
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 240, clientY: 5, buttons: 1 }))
+    document.dispatchEvent(new MouseEvent('mouseup', { clientX: 240, clientY: 5 }))
+    const range = document.getSelection()!.getRangeAt(0)
+    expect([range.startContainer, range.startOffset, range.collapsed]).toEqual([row, 1, true])
     remove()
   })
 })

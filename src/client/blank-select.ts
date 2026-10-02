@@ -1,17 +1,25 @@
 /**
- * Selecting formula blocks and pictures by touching them. Chromium places no caret in the empty
+ * Selecting pictures and boxed formulas by touching them. Chromium places no caret in the empty
  * part of a centred KaTeX block or next to an inline figure, so a drag starting there selected
- * nothing, and a drag into one only took it once the pointer had crossed it. Here formula blocks
- * and figures are atoms: a drag that reaches one selects it whole, and a drag may start on the
- * blank space around one (the selection then grows from that block). Drags that start on text
- * stay native until they reach an atom; links, controls, code and dragging the picture itself
- * (which still attaches it) are left to the browser. A drag from a table cell's padding starts
- * in that cell (Chromium would anchor it at the table's start and select the whole table).
+ * nothing, and a drag into one only took it once the pointer had crossed it. Here figures and
+ * boxed (`oxed`) formula blocks are atoms: a drag that reaches one selects it whole, and a drag
+ * may start on the blank space around one (the selection then grows from that block). Ordinary
+ * formula blocks stay partly selectable: a drag from their blank space starts at their near edge
+ * and then follows the pointer. Drags that start on text stay native until they reach an atom;
+ * links, controls, code and dragging the picture itself (which still attaches it) are left to the
+ * browser. A drag from a table cell's padding starts in that cell (Chromium would anchor it at
+ * the table's start and select the whole table).
  */
 import { MESSAGE_ROW } from './selection-markdown.ts'
 
-/** Blocks selected whole as soon as a drag reaches them. */
-const ATOMIC = '.katex-display, .math-block, .dsh-better-display__figure'
+const FORMULA_BLOCK = '.katex-display, .math-block'
+const FIGURE = '.dsh-better-display__figure'
+const BLOCKS = `${FORMULA_BLOCK}, ${FIGURE}`
+
+/** Selected whole as soon as a drag reaches it: a picture, or a formula block with a box. */
+function isAtom(block: Element): boolean {
+  return block.matches(FIGURE) || block.querySelector('.fbox') !== null
+}
 const NATIVE = 'img, a, button, input, textarea, select, [contenteditable]:not([contenteditable="false"]), pre, code, .dsh-better-display__code'
 
 interface Point { node: Node, offset: number }
@@ -36,7 +44,9 @@ function elementOf(node: Node): Element | null {
 /** The outermost atom holding `element` inside `row` (a figure inside a formula block, etc.). */
 function atomOf(element: Element | null | undefined, row: Element): Element | undefined {
   let atom: Element | undefined
-  for (let current = element?.closest(ATOMIC); current && row.contains(current); current = current.parentElement?.closest(ATOMIC)) atom = current
+  for (let current = element?.closest(BLOCKS); current && row.contains(current); current = current.parentElement?.closest(BLOCKS)) {
+    if (isAtom(current)) atom = current
+  }
   return atom
 }
 
@@ -118,7 +128,14 @@ export function installBlankSelection(): () => void {
       const rect = cell.getBoundingClientRect()
       start = { caret: { node: cell, offset: event.clientX < rect.left + rect.width / 2 ? 0 : cell.childNodes.length } }
     } else if (target.closest('table') !== null) return
-    else if (!onText) start = hitAt(event.clientX, event.clientY, row)
+    else if (!onText) {
+      // Blank space of an ordinary formula block: start at its near edge, then follow the pointer.
+      const formula = target.closest(FORMULA_BLOCK)
+      if (formula !== null && row.contains(formula)) {
+        const box = (formula.querySelector('.katex') ?? formula).getBoundingClientRect()
+        start = { caret: edge(formula, event.clientX >= box.left + box.width / 2) }
+      } else start = hitAt(event.clientX, event.clientY, row)
+    }
     if (start !== undefined) {
       event.preventDefault()
       const [base] = spanTo(start, start)
