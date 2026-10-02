@@ -30,7 +30,7 @@ function mountHost(config: unknown) {
 
 describe('host prompt section', () => {
   it('declares a schema DSH can turn into a settings form', () => {
-    expect(resolveConfig(Config({}))).toEqual({ citations: true, inlineImages: true, imageCount: 'auto', maxImages: 8, sectionOrder: 600, selectionTools: true, userMarkdown: true })
+    expect(resolveConfig(Config({}))).toEqual({ citations: true, inlineImages: true, imageCount: 'auto', maxImages: 8, sectionOrder: 600, selectionTools: true, userMarkdown: true, keyBoxes: true })
     expect(() => Config({ maxImages: 50 })).toThrow()
     expect(() => Config({ imageCount: 'many' } as never)).toThrow()
   })
@@ -50,7 +50,8 @@ describe('host prompt section', () => {
     expect(limit).toContain('at most 12')
     expect(promptText({ ...DEFAULTS, inlineImages: false })).not.toContain('Illustrating answers')
     expect(promptText({ ...DEFAULTS, citations: false })).not.toContain('Citing web sources')
-    expect(promptText({ ...DEFAULTS, citations: false, inlineImages: false })).toBe('')
+    expect(promptText({ ...DEFAULTS, citations: false, inlineImages: false, keyBoxes: false })).toBe('')
+    expect(promptText({ ...DEFAULTS, citations: false, inlineImages: false })).toContain(String.raw`\boxed{\text{`)
   })
 
   it('teaches the model to embed dsh-image-gen pictures by job reference', () => {
@@ -82,6 +83,7 @@ describe('host prompt section', () => {
 
     values.citations = false
     values.inlineImages = false
+    values.keyBoxes = false
     host.emit('better-display')
     expect(host.section).toHaveBeenCalledTimes(2)
     const secondDispose = host.section.mock.results[1]?.value as ReturnType<typeof vi.fn>

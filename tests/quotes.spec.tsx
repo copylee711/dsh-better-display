@@ -6,8 +6,8 @@ import { removeCustomComponents } from 'markstream-react'
 import { apply } from '../src/client/index.ts'
 import { Composer } from '../src/client/composer.ts'
 import type { InputActions, InputState } from '../src/client/dsh-input.ts'
-import { QUOTE_SOURCE, QuoteStore, blockquote, chipSpan, nextQuoteNumber, quoteLabel } from '../src/client/quotes.ts'
-import { createComposerDock } from '../src/client/selection-ui.tsx'
+import { QUOTE_SOURCE, QuoteStore, blockquote, chipSpan, nextQuoteNumber, quoteLabel, sendableMarkdown } from '../src/client/quotes.ts'
+import { createAttachmentRail, createComposerDock } from '../src/client/selection-ui.tsx'
 
 const TEX = String.raw`$\frac{\mu_0}{4\pi}$`
 
@@ -26,6 +26,7 @@ describe('quote codec', () => {
   it('serializes to a blockquote and labels chips readably', async () => {
     expect(blockquote(`第一行 ${TEX}\n\n第二行`)).toBe(`> 第一行 ${TEX}\n>\n> 第二行`)
     expect(quoteLabel(2)).toBe('引用 2')
+    expect(sendableMarkdown('看 ![示意图](https://a/b.png) 和 ![](x)')).toBe('看 [图片：示意图] 和 [图片]')
     const chip = (offset: number, length: number, label: string, source = QUOTE_SOURCE) => ({ occurrenceId: offset, source, ref: 'r', offset, length, label })
     expect(nextQuoteNumber([])).toBe(1)
     expect(nextQuoteNumber([chip(0, 5, '引用 1'), chip(9, 5, '引用 3'), chip(20, 4, 'a.ts', 'file')])).toBe(4)
@@ -81,6 +82,9 @@ describe('Composer.add', () => {
     expect((reference as unknown as { label: string }).label).toBe('引用 1')
     expect(createDrafts.mock.calls[0]?.[1][0]).toMatchObject({ name: '示意图.png', type: 'image/png' })
     expect(input.addAttachments).toHaveBeenCalledWith(['d0'])
+    // The picture belongs to the quote: its card shows it and the attachment rail hides it.
+    expect(composer.quotes.get(reference.ref)?.attachmentIds).toEqual(['d0'])
+    expect(composer.quotes.quotedAttachments()).toEqual(new Set(['d0']))
     expect(input.focus).toHaveBeenCalled()
   })
 
@@ -106,28 +110,60 @@ describe('Composer.add', () => {
 })
 
 describe('quote cards', () => {
-  it('render the quote, edit its source and remove its chip', async () => {
+  it('render the quote with its pictures, edit its source and remove chip and pictures', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ selectionTools: false, sideQuestions: false }), { headers: { 'content-type': 'application/json' } })))
     const store = new QuoteStore()
-    const quote = store.add('s1', `公式 ${TEX}`)
+    const quote = store.add('s1', `公式 ${TEX}\n\n![示意图](https://img.example/a.png)`)
+    store.attach(quote.ref, ['img1'])
     const composer = new Composer(store, () => ({}))
     const Dock = createComposerDock({ composer, side: () => undefined, state: async () => ({ selectionTools: false, sideQuestions: false }) })
     const insertText = vi.fn(() => true)
-    const input: InputState = { draft: '问题', draftRev: 7, phase: 'plain', attachmentIds: [], occurrences: [{ occurrenceId: 1, source: QUOTE_SOURCE, ref: quote.ref, offset: 2, length: 8, label: '引用 1' }] }
-    const view = render(<Dock session={{ sessionId: 's1' }} input={input} inputActions={{ insertText } as unknown as InputActions} />)
+    const removeAttachment = vi.fn()
+    const input: InputState = { draft: '问题', draftRev: 7, phase: 'plain', attachmentIds: ['img1'], occurrences: [{ occurrenceId: 1, source: QUOTE_SOURCE, ref: quote.ref, offset: 2, length: 8, label: '引用 1' }] }
+    const view = render(<Dock session={{ sessionId: 's1' }} input={input} inputActions={{ insertText, removeAttachment } as unknown as InputActions} />)
     await waitFor(() => { expect(view.container.querySelector('.dsh-better-display__quote-card .katex')).not.toBeNull() })
     expect(view.container.querySelector('.dsh-better-display__quote-label')?.textContent).toBe('引用 1')
+    expect(view.container.querySelector<HTMLImageElement>('.dsh-better-display__quote-card img')?.src).toBe('https://img.example/a.png')
 
     fireEvent.click(view.getByText('编辑'))
     const editor = view.container.querySelector('textarea')!
-    expect(editor.value).toBe(`公式 ${TEX}`)
     fireEvent.change(editor, { target: { value: '改写后的引用' } })
     fireEvent.click(view.getByText('完成'))
     expect(store.get(quote.ref)?.markdown).toBe('改写后的引用')
 
+    // Clicking outside the card keeps the edit and closes the editor.
+    fireEvent.click(view.getByText('编辑'))
+    fireEvent.change(view.container.querySelector('textarea')!, { target: { value: '再改一次' } })
+    fireEvent.pointerDown(document.body)
+    expect(store.get(quote.ref)?.markdown).toBe('再改一次')
+    await waitFor(() => { expect(view.container.querySelector('textarea')).toBeNull() })
+
     fireEvent.click(view.getByText('移除'))
     expect(insertText).toHaveBeenCalledWith('', { start: 2, end: 3, draftRev: 7 })
+    expect(removeAttachment).toHaveBeenCalledWith('img1')
     expect(store.get(quote.ref)).toBeUndefined()
+  })
+
+  it('drop the pictures of a chip deleted in the input box', () => {
+    const store = new QuoteStore()
+    const quote = store.add('s1', '![a](https://img.example/a.png)')
+    store.attach(quote.ref, ['img1'])
+    const composer = new Composer(store, () => ({}))
+    const Dock = createComposerDock({ composer, side: () => undefined, state: async () => ({ selectionTools: false, sideQuestions: false }) })
+    const removeAttachment = vi.fn()
+    const input: InputState = { draft: '', draftRev: 2, phase: 'plain', attachmentIds: ['img1', 'other'], occurrences: [] }
+    render(<Dock session={{ sessionId: 's1' }} input={input} inputActions={{ removeAttachment } as unknown as InputActions} />)
+    expect(removeAttachment.mock.calls).toEqual([['img1']])
+    expect(store.quotedAttachments().size).toBe(0)
+  })
+
+  it('keep quote pictures out of the attachment rail', () => {
+    const store = new QuoteStore()
+    store.attach(store.add('s1', 'x').ref, ['img1'])
+    const Builtin = vi.fn(({ attachments }: { attachments: ReadonlyArray<{ id: string }> }) => <span>{attachments.map(item => item.id).join(',')}</span>)
+    const Rail = createAttachmentRail(store, () => Builtin)
+    const view = render(<Rail attachments={[{ id: 'img1' }, { id: 'mine' }]} />)
+    expect(view.container.textContent).toBe('mine')
   })
 })
 
@@ -164,5 +200,19 @@ describe('selection toolbar', () => {
     fireEvent.click(view.getByText('解释一下'))
     expect(ask).toHaveBeenCalledWith('s1', '解释一下', '磁场 **垂直** 于连线')
     expect(dialog.isConnected).toBe(false)
+  })
+})
+
+describe('quote persistence', () => {
+  it('restores quotes after a page reload', () => {
+    const data = new Map<string, string>()
+    const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value) } }
+    const first = new QuoteStore(storage)
+    const quote = first.add('s1', '原文')
+    first.attach(quote.ref, ['img1'])
+    const second = new QuoteStore(storage)
+    expect(second.get(quote.ref)).toEqual({ ref: quote.ref, sessionId: 's1', markdown: '原文', attachmentIds: ['img1'] })
+    second.delete(quote.ref)
+    expect(new QuoteStore(storage).get(quote.ref)).toBeUndefined()
   })
 })

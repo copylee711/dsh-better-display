@@ -58,7 +58,7 @@ describe('selectionToMarkdown', () => {
       '',
       '> 引用',
       '',
-      '[埃菲尔铁塔]',
+      '![埃菲尔铁塔](https://img.example/a.jpg)',
     ].join('\n'))
     expect(quote.images).toEqual([{ src: 'https://img.example/a.jpg', alt: '埃菲尔铁塔' }])
   })

@@ -3,7 +3,7 @@
  * the side-question dialog and answer bubbles, and the cards of quotes attached to the draft.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
+import type { ComponentType, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { Composer } from './composer.ts'
 import type { InputActions, InputDockProps, Occurrence } from './dsh-input.ts'
@@ -214,7 +214,21 @@ function QuoteCard({ occurrence, input, composer, actions }: { occurrence: Occur
   const editing = composer.quotes.editing === occurrence.ref
   const [expanded, setExpanded] = useState(false)
   const [source, setSource] = useState(quote?.markdown ?? '')
+  const card = useRef<HTMLDivElement>(null)
+  const latest = useRef(source)
+  latest.current = source
   useEffect(() => { if (editing) setSource(quote?.markdown ?? '') }, [editing]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Clicking anywhere outside the card while editing keeps the edit and closes the editor.
+  useEffect(() => {
+    if (!editing) return undefined
+    const outside = (event: PointerEvent) => {
+      if (event.target instanceof Node && card.current?.contains(event.target) === true) return
+      if (latest.current.trim() !== '') composer.quotes.update(occurrence.ref, latest.current)
+      composer.quotes.edit(undefined)
+    }
+    document.addEventListener('pointerdown', outside, true)
+    return () => { document.removeEventListener('pointerdown', outside, true) }
+  }, [editing, occurrence.ref])
   if (quote === undefined) return null
   const save = () => {
     if (source.trim() !== '') composer.quotes.update(quote.ref, source)
@@ -225,10 +239,11 @@ function QuoteCard({ occurrence, input, composer, actions }: { occurrence: Occur
       composer.notify(quote.sessionId, label('removeFailed'))
       return
     }
+    for (const id of quote.attachmentIds) actions.removeAttachment(id)
     composer.quotes.delete(quote.ref)
   }
   return (
-    <div className="dsh-better-display__quote-card" data-editing={editing || undefined}>
+    <div ref={card} className="dsh-better-display__quote-card" data-editing={editing || undefined}>
       <div className="dsh-better-display__quote-head">
         <span className="dsh-better-display__quote-label">{occurrence.label}</span>
         <span className="dsh-better-display__quote-actions">
@@ -258,8 +273,19 @@ function QuoteCard({ occurrence, input, composer, actions }: { occurrence: Occur
   )
 }
 
-function QuoteCards({ input, composer, actions }: { input: InputDockProps['input'], composer: Composer, actions: InputActions | undefined }) {
+function QuoteCards({ sessionId, input, composer, actions }: { sessionId: string, input: InputDockProps['input'], composer: Composer, actions: InputActions | undefined }) {
   const occurrences = input.occurrences.filter(occurrence => occurrence.source === QUOTE_SOURCE)
+  // A chip deleted in the input box (or sent) takes its pictures along: they would otherwise be
+  // sent as stray attachments nobody can see.
+  const present = occurrences.map(occurrence => occurrence.ref).join(' ')
+  useEffect(() => {
+    const refs = new Set(present.split(' '))
+    for (const quote of composer.quotes.withPictures(sessionId)) {
+      if (refs.has(quote.ref)) continue
+      for (const id of quote.attachmentIds) if (input.attachmentIds.includes(id)) actions?.removeAttachment(id)
+      composer.quotes.detach(quote.ref)
+    }
+  }, [present, sessionId])  // eslint-disable-line react-hooks/exhaustive-deps
   if (occurrences.length === 0) return null
   return (
     <div className="dsh-better-display__quote-cards">
@@ -347,9 +373,31 @@ export function createComposerDock(context: DockContext) {
           />
         )}
         {side !== undefined && <SideBubbles side={side} sessionId={sessionId} onQuote={markdown => { add({ markdown, images: [] }) }} />}
-        <QuoteCards input={props.input} composer={composer} actions={actions} />
+        <QuoteCards sessionId={sessionId} input={props.input} composer={composer} actions={actions} />
         <DraftPreview input={props.input} />
       </div>
     )
   }
+}
+
+/**
+ * The composer's attachment rail without the pictures that belong to quote cards (they show
+ * inside their card instead). Everything else — dropped, pasted or uploaded files — is drawn by
+ * the built-in rail this one shadows.
+ */
+export function createAttachmentRail(quotes: Composer['quotes'], builtin: () => ComponentType<RailProps> | undefined) {
+  return function QuoteAwareAttachmentRail(props: RailProps): ReactNode {
+    useQuoteStore(quotes)
+    const Builtin = builtin()
+    // Abdicate to the built-in rail (the slot renders the next entry when this one throws).
+    if (Builtin === undefined) throw new Error('dsh-better-display: built-in attachment rail not found')
+    const hidden = quotes.quotedAttachments()
+    if (hidden.size === 0) return <Builtin {...props} />
+    return <Builtin {...props} attachments={props.attachments.filter(attachment => !hidden.has(attachment.id))} />
+  }
+}
+
+interface RailProps {
+  attachments: ReadonlyArray<{ id: string }>
+  [prop: string]: unknown
 }

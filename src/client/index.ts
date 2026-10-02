@@ -19,7 +19,7 @@ import { Composer, setActiveComposer } from './composer.ts'
 import type { ConversationService, InputTriggersService, SessionsService } from './dsh-input.ts'
 import { isChinese } from './labels.ts'
 import { QuoteStore } from './quotes.ts'
-import { createComposerDock, type DockState } from './selection-ui.tsx'
+import { createAttachmentRail, createComposerDock, type DockState } from './selection-ui.tsx'
 import { SIDE_CLOSE_COMMAND, SIDE_RUN_COMMAND, SideQuestions } from './side-questions.ts'
 import { createUserMessageView, userMarkdownSetting } from './user-message.tsx'
 
@@ -90,6 +90,10 @@ export function apply(ctx: Context): void {
     locale: 'chat',
   }, BetterAssistantNodeView))
 
+  // Quotes, pictures and side questions from transcript selections (composer dock).
+  const services: { conversation?: ConversationService, sessions?: SessionsService } = {}
+  const composer = new Composer(new QuoteStore(), () => services)
+
   // The user's own bubbles as Markdown, drawn by the built-in bubble it shadows.
   if (typeof slots.entries === 'function') {
     const UserMessageView = createUserMessageView(kind => {
@@ -102,6 +106,11 @@ export function apply(ctx: Context): void {
       const disposers = ['user', 'steering'].map(key => slots.register({ name: 'conversation.chat.node', key, priority: ASSISTANT_STEP_PRIORITY, locale: 'chat' }, UserMessageView))
       return () => { for (const dispose of disposers) dispose() }
     })
+    // Pictures of quotes show inside their cards, not in the composer's attachment rail.
+    const Rail = createAttachmentRail(composer.quotes, () => (slots.entries?.('conversation.input.attachments') ?? [])
+      .filter(entry => entry.component !== Rail)
+      .sort((a, b) => (a.options.priority ?? 0) - (b.options.priority ?? 0))[0]?.component as ReturnType<Parameters<typeof createAttachmentRail>[1]>)
+    slots.inject('conversation.input.attachments', () => slots.register({ name: 'conversation.input.attachments', priority: ASSISTANT_STEP_PRIORITY, locale: 'conversation' }, Rail))
     ctx.effect(() => {
       const refresh = () => { void readState().then(state => { userMarkdownSetting.set(state.userMarkdown !== false) }, () => {}) }
       refresh()
@@ -110,9 +119,7 @@ export function apply(ctx: Context): void {
     }, 'dsh-better-display: user message setting')
   }
 
-  // Quotes, pictures and side questions from transcript selections (composer dock).
-  const services: { conversation?: ConversationService, sessions?: SessionsService } = {}
-  const composer = new Composer(new QuoteStore(), () => services)
+  // Side questions and the composer dock (quotes, pictures) are wired below.
   let side: SideQuestions | undefined
   ctx.effect(() => {
     setActiveComposer(composer)

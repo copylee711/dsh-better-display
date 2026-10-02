@@ -33,6 +33,8 @@ export const zh = {
   selectionToolsHint: '在回答中选中文字或图片后，可「添加到对话」（可编辑的引用卡片，公式保持可读）或「旁问」（不打扰主对话的一次性提问）。',
   userMarkdown: '渲染我的消息',
   userMarkdownHint: '自己发出的消息气泡也按 Markdown 显示：公式、引用、列表、代码。',
+  keyBoxes: '重点框线',
+  keyBoxesHint: '让模型像 ChatGPT 那样，用方框突出关键公式、最终结果和核心结论（每条回答通常一到三处）。',
   inlineImagesHint: '让模型把搜到的相关图片嵌入回答（image_search / page_images / save_images 的结果）。',
   imageCount: '配图数量',
   imageCountHint: '「由 AI 决定」时模型按内容需要配图，不需要就不配；也可以限制每条回答的最多张数。',
@@ -56,6 +58,8 @@ export const en: typeof zh = {
   selectionToolsHint: 'Select reply text or pictures to add them to the chat as an editable quote card, or ask a one-off side question.',
   userMarkdown: 'Render my messages',
   userMarkdownHint: 'Show your own message bubbles as Markdown: formulas, quotes, lists, code.',
+  keyBoxes: 'Key boxes',
+  keyBoxesHint: 'Have the model frame key formulas, final results and core conclusions in a box, like ChatGPT (usually one to three per answer).',
   inlineImagesHint: 'The model embeds relevant pictures from image_search / page_images / save_images in its answer.',
   imageCount: 'Picture count',
   imageCountHint: 'With "Let AI decide" the model adds as many pictures as the answer needs, or none; or cap it per reply.',
@@ -72,7 +76,7 @@ export const en: typeof zh = {
 type Key = keyof typeof zh
 type Translate = (key: Key) => string
 
-const DEFAULTS = { citations: true, inlineImages: true, imageCount: 'auto' as ImageCount, maxImages: 8, selectionTools: true, userMarkdown: true }
+const DEFAULTS = { citations: true, inlineImages: true, imageCount: 'auto' as ImageCount, maxImages: 8, selectionTools: true, userMarkdown: true, keyBoxes: true }
 
 /** Read the current values with defaults for anything unset. */
 export function readValues(value: Record<string, unknown> | undefined) {
@@ -85,6 +89,7 @@ export function readValues(value: Record<string, unknown> | undefined) {
     maxImages: max,
     selectionTools: typeof v.selectionTools === 'boolean' ? v.selectionTools : DEFAULTS.selectionTools,
     userMarkdown: typeof v.userMarkdown === 'boolean' ? v.userMarkdown : DEFAULTS.userMarkdown,
+    keyBoxes: typeof v.keyBoxes === 'boolean' ? v.keyBoxes : DEFAULTS.keyBoxes,
   }
 }
 
@@ -167,6 +172,9 @@ export function DisplaySettings({ view, form, t }: { view: 'summary' | 'page', f
       </Row>
       <Row label={t('userMarkdown')} hint={t('userMarkdownHint')}>
         <Switch checked={values.userMarkdown} label={t('userMarkdown')} disabled={disabled} onChange={next => { write('userMarkdown', next) }} />
+      </Row>
+      <Row label={t('keyBoxes')} hint={t('keyBoxesHint')}>
+        <Switch checked={values.keyBoxes} label={t('keyBoxes')} disabled={disabled} onChange={next => { write('keyBoxes', next) }} />
       </Row>
       {status !== 'idle' && (
         <div className="dsh-better-display__setting-note" data-state={status}>{t(status === 'saved' ? 'saved' : 'saveFailed')}</div>

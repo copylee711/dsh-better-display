@@ -40,6 +40,8 @@ export interface Config {
   selectionTools: boolean
   /** Render Markdown and formulas in the user's own message bubbles. */
   userMarkdown: boolean
+  /** Ask the model to box key results and conclusions (`\boxed{…}`), like ChatGPT. */
+  keyBoxes: boolean
 }
 
 export const DEFAULTS: Config = {
@@ -50,6 +52,7 @@ export const DEFAULTS: Config = {
   sectionOrder: 600,
   selectionTools: true,
   userMarkdown: true,
+  keyBoxes: true,
 }
 
 export const Config = z.object({
@@ -79,6 +82,10 @@ export const Config = z.object({
   userMarkdown: z.boolean().default(DEFAULTS.userMarkdown).volatile().i18n({
     'zh-CN': { $description: '用户消息渲染：自己发出的消息气泡也按 Markdown 显示（公式、引用、列表、代码）。' },
     'en-US': { $description: 'User messages: render Markdown (formulas, quotes, lists, code) in your own message bubbles.' },
+  }),
+  keyBoxes: z.boolean().default(DEFAULTS.keyBoxes).volatile().i18n({
+    'zh-CN': { $description: '重点框线：让模型用方框突出关键公式、最终结果和核心结论，像 ChatGPT 那样。' },
+    'en-US': { $description: 'Key boxes: the model frames key formulas, final results and core conclusions in a box, like ChatGPT.' },
   }),
   sectionOrder: z.number().default(DEFAULTS.sectionOrder).volatile().i18n({
     'zh-CN': { $description: '高级：system prompt 中本段的排序（越大越靠后）。' },
@@ -119,6 +126,7 @@ export function resolveConfig(raw: unknown): Config {
     sectionOrder: pick('sectionOrder', value => typeof value === 'number' && Number.isFinite(value)),
     selectionTools: pick('selectionTools', value => typeof value === 'boolean'),
     userMarkdown: pick('userMarkdown', value => typeof value === 'boolean'),
+    keyBoxes: pick('keyBoxes', value => typeof value === 'boolean'),
   }
 }
 
@@ -161,6 +169,16 @@ export function promptText(config: Config): string {
       `When ${GENERATED_IMAGE_TOOLS} return an inline image reference (\`genimg:<id>\`), show the picture inside your reply by embedding exactly that reference: \`![Gaussian surface around a point charge](genimg:<id>)\`. Alt text is the caption.`,
       '- Prefer it over linking the saved workspace file, and place it where it illustrates the text. It does not count toward the picture budget above.',
       '- A background job (`background: true`) shows as a placeholder that turns into the image when ready, even after your reply ends: embed it right away and keep writing; never wait or poll for it.',
+    )
+  }
+  if (config.keyBoxes) {
+    if (parts.length > 0) parts.push('')
+    parts.push(
+      '### Highlighting key points',
+      String.raw`Frame what the reader must take away — a key formula, the final result of a derivation, a one-sentence core conclusion — in a box, as display math with \boxed:`,
+      String.raw`$$\boxed{\oint_S \mathbf E\cdot d\mathbf A = \frac{Q_{\text{enc}}}{\varepsilon_0}}$$ or, for a sentence, $$\boxed{\text{把单链表限制成 LIFO，就得到链栈}}$$`,
+      '- Use it sparingly: usually one to three boxes per answer, only for genuinely central points; never for routine steps, headings or every equation.',
+      String.raw`- Keep boxed text short (one line or a small aligned block); write sentences inside \text{…}.`,
     )
   }
   if (parts.length === 0) return ''

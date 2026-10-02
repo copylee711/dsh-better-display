@@ -87,10 +87,14 @@ Select text or pictures in a reply to get a small toolbar:
 - **Add to chat** attaches the selection as a quote card above the composer, like ChatGPT's quotes.
   - Formulas, emphasis, lists, tables and code come back as their Markdown source, so the card renders them properly instead of garbled text.
   - Cards can be expanded, edited (as Markdown) or removed. The composer only shows a small chip, which becomes a tidy `>` blockquote when you send.
-  - Selected pictures (including dsh-image-gen images) are attached as images; the picture preview has "Add to chat" too.
+  - Pictures in the selection (including dsh-image-gen images) show as thumbnails in place inside the card and are sent to the model as image attachments; removing the card removes them too. "Add to chat" in the picture preview still adds a plain attachment.
 - **Ask aside** asks a one-off question about the selection (e.g. "Explain this"). A tool-less fork of the conversation answers it in a bubble above the composer, with Markdown and math, without touching the main conversation.
 
 These replace [dsh-btw](https://github.com/MichengAI/dsh-btw); with both installed you get two toolbars, so uninstall dsh-btw. The "Selection toolbar" setting turns both features off.
+
+## Key boxes
+
+Like ChatGPT, the model frames key formulas, final results and core conclusions in a box (`$$\boxed{…}$$`), usually one to three per answer. Turn it off with "Key boxes".
 
 ## Your messages, rendered
 

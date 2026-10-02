@@ -144,8 +144,10 @@ function serialize(node: Node, walk: Walk): string {
     const image = node as HTMLImageElement
     const alt = image.alt.trim()
     const src = image.currentSrc || image.src
-    if (src !== '') walk.images.push({ src, alt })
-    return `[${alt || 'image'}]`
+    if (src === '') return alt === '' ? '' : `[${alt}]`
+    walk.images.push({ src, alt })
+    // Kept as a Markdown image so the quote card shows it in place (sending swaps in a label).
+    return `![${alt.replace(/[[\]]/g, '')}](${src.replace(/[ ()]/g, encodeURIComponent)})`
   }
   if (tag === 'BR') return '\n'
   if (tag === 'HR') return block('---')

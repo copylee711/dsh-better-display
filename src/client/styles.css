@@ -65,7 +65,7 @@
 
 .dsh-better-display__image-alt {
   color: var(--dsw-alias-label-tertiary);
-  font-style: italic;
+  font-style: normal;
 }
 
 .dsh-better-display__stopped {
@@ -170,7 +170,7 @@
 
 .dsh-better-display__image-alt {
   color: var(--dsw-alias-label-tertiary);
-  font-style: italic;
+  font-style: normal;
 }
 
 /* dsh-image-gen pictures still rendering (or failed): a box at the expected aspect ratio. */
@@ -976,15 +976,15 @@
   border-left: 3px solid var(--dsw-alias-state-business-primary, #4d6bfe);
 }
 
-/* The quote chip in the input box: a quote mark instead of the generic "@" marker. */
+/* The quote chip in the input box: just "Quote n", without the generic "@" marker. */
 [data-composer-chip="better-display-quote"] [class*="marker"] {
   display: none;
 }
 
-[data-composer-chip="better-display-quote"] [class*="label"]::before {
-  content: "\201C";
-  margin-right: 2px;
-  font-weight: 600;
+/* Pictures of a quote show small inside its card. */
+.dsh-better-display__quote-preview .dsh-better-display__image {
+  max-height: 120px;
+  width: auto;
 }
 
 .dsh-better-display__quote-head,

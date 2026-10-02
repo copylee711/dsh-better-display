@@ -51,6 +51,14 @@ function remoteImage(url: string): string | undefined {
 function imageSource(url: string, cwd: string | undefined): string | undefined {
   const remote = remoteImage(url)
   if (remote !== undefined) return remote
+  // The page's own pictures (dsh-image-gen jobs, workspace files) as quoted from the transcript;
+  // the desktop app serves them from its own `dsh-app:` origin.
+  try {
+    const parsed = new URL(url)
+    const base = new URL(document.baseURI)
+    // Compared by parts: custom schemes may report an opaque ("null") origin.
+    if (parsed.protocol === base.protocol && parsed.host === base.host && parsed.host !== '') return parsed.href
+  } catch { /* not an absolute URL */ }
   const path = localPath(url)
   return path === undefined ? undefined : workspaceFileUrl(document.baseURI, cwd, path)
 }
@@ -225,11 +233,11 @@ function PlainImageNode({ node }: NodeComponentProps<ImageNode>) {
   const close = useCallback(() => { setZoomed(false) }, [])
   const { cwd } = useWorkspace()
   const src = imageSource(node.src, cwd)
-  if (src === undefined) return <span className="dsh-better-display__image-alt">{node.alt}</span>
+  if (src === undefined) return <span className="dsh-better-display__image-alt"><CaptionText text={node.alt} /></span>
   if (failed) {
     return (
       <a className="dsh-better-display__image-alt" href={src} target="_blank" rel="noopener noreferrer">
-        {node.alt || (remoteImage(node.src) === undefined ? node.src : hostOf(src))}
+        {node.alt === "" ? (remoteImage(node.src) === undefined ? node.src : hostOf(src)) : <CaptionText text={node.alt} />}
       </a>
     )
   }
@@ -696,7 +704,9 @@ const SMOOTH_STREAMING = Object.freeze({
   targetLatencyMs: 240,
   catchUpLatencyMs: 140,
   catchUpThreshold: 500,
-  maxCommitFps: 60,
+  // No cap below the display: commits follow requestAnimationFrame, so 120/144 Hz screens get
+  // 120/144 small steps a second.
+  maxCommitFps: 240,
   startDelayMs: 0,
   maxCharsPerCommit: 40,
   // The backlog drains at the paced rate after the reply ends instead of appearing in one jump.

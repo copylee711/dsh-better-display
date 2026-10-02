@@ -15,6 +15,16 @@ export interface Quote {
   /** Session whose composer holds the chip. */
   sessionId: string
   markdown: string
+  /** Composer attachments carrying the quote's pictures (shown in the card, not the rail). */
+  attachmentIds: readonly string[]
+}
+
+/**
+ * The quote as sent: its pictures travel as image attachments, so in the text each one is
+ * replaced by a short label instead of a URL the model cannot look at.
+ */
+export function sendableMarkdown(markdown: string): string {
+  return markdown.replace(/!\[([^\]]*)\]\([^)]*\)/g, (_match, alt: string) => `[${label('quotedImage')}${alt.trim() === '' ? '' : `：${alt.trim()}`}]`)
 }
 
 /** `> `-prefixed Markdown, one quote line per source line. */
@@ -56,8 +66,25 @@ export function chipSpan(input: Pick<InputState, 'draft' | 'occurrences'>, targe
   return { start, end: start + (input.draft[target.offset + target.length] === ' ' ? 2 : 1) }
 }
 
+/** Where quotes outlive a page reload (the restored draft still holds their chips). */
+const STORAGE_KEY = 'dsh-better-display:quotes'
+/** Quotes older than this are not restored (their drafts are long gone). */
+const STORAGE_TTL_MS = 7 * 24 * 3600 * 1000
+
 export class QuoteStore {
   private readonly quotes = new Map<string, Quote>()
+  private readonly created = new Map<string, number>()
+
+  constructor(private readonly storage: Pick<Storage, 'getItem' | 'setItem'> | undefined = defaultStorage()) {
+    try {
+      const saved = JSON.parse(this.storage?.getItem(STORAGE_KEY) ?? '[]') as Array<Quote & { at?: number }>
+      for (const quote of saved) {
+        if (typeof quote.ref !== 'string' || typeof quote.markdown !== 'string' || Date.now() - (quote.at ?? 0) > STORAGE_TTL_MS) continue
+        this.quotes.set(quote.ref, { ref: quote.ref, sessionId: String(quote.sessionId), markdown: quote.markdown, attachmentIds: Array.isArray(quote.attachmentIds) ? quote.attachmentIds.map(String) : [] })
+        this.created.set(quote.ref, quote.at ?? 0)
+      }
+    } catch { /* unreadable storage: start empty */ }
+  }
   private readonly listeners = new Set<() => void>()
   private version = 0
   private counter = 0
@@ -65,8 +92,9 @@ export class QuoteStore {
   editing: string | undefined
 
   add(sessionId: string, markdown: string): Quote {
-    const quote = { ref: `q${Date.now().toString(36)}${String(++this.counter)}`, sessionId, markdown }
+    const quote: Quote = { ref: `q${Date.now().toString(36)}${String(++this.counter)}`, sessionId, markdown, attachmentIds: [] }
     this.quotes.set(quote.ref, quote)
+    this.created.set(quote.ref, Date.now())
     this.changed()
     return quote
   }
@@ -82,6 +110,34 @@ export class QuoteStore {
     this.changed()
   }
 
+  /** Record the attachments holding a quote's pictures. */
+  attach(ref: string, ids: readonly string[]): void {
+    const quote = this.quotes.get(ref)
+    if (quote === undefined) return
+    this.quotes.set(ref, { ...quote, attachmentIds: [...quote.attachmentIds, ...ids] })
+    this.changed()
+  }
+
+  /** Forget a quote's pictures (their attachments were removed or sent). */
+  detach(ref: string): void {
+    const quote = this.quotes.get(ref)
+    if (quote === undefined || quote.attachmentIds.length === 0) return
+    this.quotes.set(ref, { ...quote, attachmentIds: [] })
+    this.changed()
+  }
+
+  /** Attachments shown inside quote cards, to keep out of the composer's attachment rail. */
+  quotedAttachments(): ReadonlySet<string> {
+    const ids = new Set<string>()
+    for (const quote of this.quotes.values()) for (const id of quote.attachmentIds) ids.add(id)
+    return ids
+  }
+
+  /** Quotes of a session that hold pictures. */
+  withPictures(sessionId: string): Quote[] {
+    return [...this.quotes.values()].filter(quote => quote.sessionId === sessionId && quote.attachmentIds.length > 0)
+  }
+
   edit(ref: string | undefined): void {
     this.editing = ref
     this.changed()
@@ -92,6 +148,7 @@ export class QuoteStore {
    * send restores the draft with its chips, which must still serialize.
    */
   delete(ref: string): void {
+    this.created.delete(ref)
     if (this.quotes.delete(ref)) this.changed()
   }
 
@@ -103,13 +160,16 @@ export class QuoteStore {
   snapshot = (): number => this.version
 
   private changed(): void {
+    try {
+      this.storage?.setItem(STORAGE_KEY, JSON.stringify([...this.quotes.values()].map(quote => ({ ...quote, at: this.created.get(quote.ref) ?? Date.now() }))))
+    } catch { /* storage full or unavailable: quotes stay in memory */ }
     this.version++
     for (const listener of this.listeners) listener()
   }
 
   /** The chip inserted for a quote. */
   reference(quote: Quote, n: number): ReferenceInsert {
-    return { source: QUOTE_SOURCE, ref: quote.ref, label: quoteLabel(n), clipboardText: `\n${blockquote(quote.markdown)}\n` }
+    return { source: QUOTE_SOURCE, ref: quote.ref, label: quoteLabel(n), clipboardText: `\n${blockquote(sendableMarkdown(quote.markdown))}\n` }
   }
 
   /** Input-trigger source: no menu entries, chips open the card editor, sending writes a blockquote. */
@@ -128,12 +188,12 @@ export class QuoteStore {
       codec: {
         clipboardText: ref => {
           const quote = this.quotes.get(ref)
-          return quote === undefined ? '' : `\n${blockquote(quote.markdown)}\n`
+          return quote === undefined ? '' : `\n${blockquote(sendableMarkdown(quote.markdown))}\n`
         },
         // Blank lines around the quote keep it a block between the user's own words.
         serialize: async ref => {
           const quote = this.quotes.get(ref)
-          return quote === undefined ? '' : `\n\n${blockquote(quote.markdown)}\n\n`
+          return quote === undefined ? '' : `\n\n${blockquote(sendableMarkdown(quote.markdown))}\n\n`
         },
       },
     }
@@ -142,4 +202,12 @@ export class QuoteStore {
 
 export function useQuoteStore(store: QuoteStore): number {
   return useSyncExternalStore(store.subscribe, store.snapshot, store.snapshot)
+}
+
+function defaultStorage(): Storage | undefined {
+  try {
+    return typeof localStorage === 'undefined' ? undefined : localStorage
+  } catch {
+    return undefined
+  }
 }
