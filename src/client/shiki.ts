@@ -1,5 +1,6 @@
 import { createBundledHighlighter } from 'shiki/core'
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
+import type { SHIKI_LANGUAGES } from './code-themes.ts'
 
 const languages = {
   bash: () => import('@shikijs/langs/bash'),
@@ -36,7 +37,7 @@ const languages = {
   vue: () => import('@shikijs/langs/vue'),
   xml: () => import('@shikijs/langs/xml'),
   yaml: () => import('@shikijs/langs/yaml'),
-}
+} satisfies Record<(typeof SHIKI_LANGUAGES)[number], unknown>
 
 const themes = {
   'github-dark-default': () => import('@shikijs/themes/github-dark-default'),
@@ -44,13 +45,6 @@ const themes = {
   'vitesse-dark': () => import('@shikijs/themes/vitesse-dark'),
   'vitesse-light': () => import('@shikijs/themes/vitesse-light'),
 }
-
-/** Code block colours: GitHub's palettes read closest to ChatGPT's and stay soft on DSH surfaces. */
-export const CODE_THEME_LIGHT = 'github-light'
-export const CODE_THEME_DARK = 'github-dark-default'
-export const CODE_THEMES = Object.freeze([CODE_THEME_LIGHT, CODE_THEME_DARK])
-
-export const SHIKI_LANGUAGES = Object.freeze(Object.keys(languages))
 
 export const createHighlighter = createBundledHighlighter({
   langs: languages,

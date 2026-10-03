@@ -150,7 +150,7 @@ pnpm pack --dry-run
 
 ## Compatibility
 
-- DeepSeek Harness Web `0.1.7` or later (verified on `0.2.0-rc.2`); use `0.1.0` for older releases
+- DeepSeek Harness `0.2.0-rc.2` or later. Use `0.3.8` for `0.1.7` to `0.2.0-rc.1`, and `0.1.0` for anything older
 - React 18+
 
 ## Credits

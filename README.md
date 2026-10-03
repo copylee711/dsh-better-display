@@ -204,9 +204,11 @@ pnpm pack --dry-run
 - `src/client/styles.css`：基于 DSH `--dsw-*` token 的样式，自动适配深浅色
 - `tests/`：流式渲染、安全策略、引用 / 图片 / 来源面板、prompt section 测试
 
+浏览器端分成三个文件：`lib/client.js` 随 DSH 启动加载；Mermaid（`lib/client.mermaid.js`）和代码高亮（`lib/client.code.js`）体积较大，在回答里第一次出现流程图或代码块时才由宿主按需加载。
+
 ## 兼容性
 
-- DeepSeek Harness Web `0.1.7` 及以上（已在 `0.2.0-rc.2` 验证）；更早的版本请用 `0.1.0`
+- DeepSeek Harness `0.2.0-rc.2` 及以上。`0.1.7` 至 `0.2.0-rc.1` 请用 `0.3.8`，更早的版本请用 `0.1.0`
 - React 18+
 
 ## 致谢
@@ -215,6 +217,6 @@ pnpm pack --dry-run
 - [dsh-genui](https://github.com/lhuans/dsh-genui)：system prompt section + 自定义 assistant 渲染的思路
 - [markstream-react](https://github.com/Simon-He95/markstream-vue)、[DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness)
 
-## License
+## 许可证
 
 [MIT](./LICENSE)
