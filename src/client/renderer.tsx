@@ -11,7 +11,7 @@ import type { MarkdownFileMentions } from '@deepseek-ai/dsh-client-ui-primitives
 import type { AssistantChatData, ChatNodeViewProps, TurnTailOwnerProps } from '@deepseek-ai/dsh-client-ui-chat/client'
 import { escapeCurrencyDollars } from './dollars.ts'
 import { normalizeListIndent } from './list-indent.ts'
-import { CODE_THEMES, CODE_THEME_DARK, CODE_THEME_LIGHT, SHIKI_LANGUAGES } from './shiki.ts'
+import { CODE_THEMES, CODE_THEME_DARK, CODE_THEME_LIGHT, SHIKI_LANGUAGES } from './code-themes.ts'
 import { citationLabel, extractCitations, hostOf, safeHttpUrl } from './citations.ts'
 import type { Citation } from './citations.ts'
 import { WorkspaceProvider, localPath, useWorkspace, workspaceFileUrl } from './workspace.ts'

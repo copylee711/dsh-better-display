@@ -1,6 +1,6 @@
 {
   "name": "@copylee/dsh-better-display",
-  "version": "0.3.8",
+  "version": "0.4.0",
   "description": "DeepSeek Harness Web plugin: illustrated assistant replies with GPT-style citation chips and a sources panel for web-search results, on top of streaming markstream-react Markdown.",
   "packageManager": "pnpm@10.33.3",
   "author": "copylee711",
@@ -32,6 +32,8 @@
     "lib/index.d.ts",
     "lib/client.js",
     "lib/client.js.map",
+    "lib/client.*.js",
+    "lib/client.*.js.map",
     "cordis.patch.yml",
     "README.md",
     "README_EN.md",
@@ -61,7 +63,7 @@
       ]
     },
     "engines": {
-      "dsh": ">=0.1.7-rc.1"
+      "dsh": ">=0.2.0-rc.2"
     }
   },
   "keywords": [
@@ -83,14 +85,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@deepseek-ai/schemastery": "^3.18.4",
-    "@shikijs/langs": "4.4.3",
-    "@shikijs/themes": "4.4.3",
-    "katex": "0.18.9",
-    "markstream-react": "0.0.55",
-    "mermaid": "11.16.1",
-    "shiki": "4.4.3",
-    "stream-markdown": "0.0.16"
+    "@deepseek-ai/schemastery": "^3.18.4"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
@@ -102,6 +97,8 @@
     "@deepseek-ai/dsh-client-ui-slots": "0.2.0-rc.2",
     "@deepseek-ai/dsh-util-code-language": "0.2.0-rc.2",
     "@deepseek-ai/dsh-util-workspace-path": "0.2.0-rc.2",
+    "@shikijs/langs": "4.4.3",
+    "@shikijs/themes": "4.4.3",
     "@testing-library/react": "^16.3.0",
     "@types/node": "^22.20.4",
     "@types/react": "~18.3.1",
@@ -111,9 +108,12 @@
     "diff": "^9.0.0",
     "immer": "^11.1.18",
     "jsdom": "^26.1.0",
+    "katex": "0.18.9",
+    "markstream-react": "0.0.55",
     "mdast-util-from-markdown": "^2.0.3",
     "mdast-util-gfm": "^3.1.0",
     "mdast-util-math": "^3.0.0",
+    "mermaid": "11.16.1",
     "micromark-core-commonmark": "^2.0.4",
     "micromark-extension-gfm": "^3.0.0",
     "micromark-extension-math": "^3.1.0",
@@ -124,7 +124,9 @@
     "micromark-util-symbol": "^2.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "shiki": "4.4.3",
     "simple-icons": "^16.33.0",
+    "stream-markdown": "0.0.16",
     "stream-markdown-parser": "1.1.4",
     "tsdown": "^0.22.14",
     "typescript": "^5.9.2",
@@ -133,11 +135,11 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4",
-    "@deepseek-ai/dsh-client-locale": ">=0.1.7-rc.1",
-    "@deepseek-ai/dsh-client-ui-chat": ">=0.1.7-rc.1",
-    "@deepseek-ai/dsh-client-ui-conversation": ">=0.1.7-rc.1",
-    "@deepseek-ai/dsh-client-ui-primitives": ">=0.1.7-rc.1",
-    "@deepseek-ai/dsh-client-ui-slots": ">=0.1.7-rc.1",
+    "@deepseek-ai/dsh-client-locale": ">=0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-chat": ">=0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-conversation": ">=0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-primitives": ">=0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-slots": ">=0.2.0-rc.2",
     "react": ">=18",
     "react-dom": ">=18"
   }

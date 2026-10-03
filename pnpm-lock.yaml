@@ -11,27 +11,6 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: ^3.18.4
         version: 3.18.4
-      '@shikijs/langs':
-        specifier: 4.4.3
-        version: 4.4.3
-      '@shikijs/themes':
-        specifier: 4.4.3
-        version: 4.4.3
-      katex:
-        specifier: 0.18.9
-        version: 0.18.9
-      markstream-react:
-        specifier: 0.0.55
-        version: 0.0.55(katex@0.18.9)(mermaid@11.16.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(stream-markdown@0.0.16(react@18.3.1)(shiki@4.4.3))
-      mermaid:
-        specifier: 11.16.1
-        version: 11.16.1
-      shiki:
-        specifier: 4.4.3
-        version: 4.4.3
-      stream-markdown:
-        specifier: 0.0.16
-        version: 0.0.16(react@18.3.1)(shiki@4.4.3)
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: ^4.0.1
@@ -60,6 +39,12 @@ importers:
       '@deepseek-ai/dsh-util-workspace-path':
         specifier: 0.2.0-rc.2
         version: 0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)
+      '@shikijs/langs':
+        specifier: 4.4.3
+        version: 4.4.3
+      '@shikijs/themes':
+        specifier: 4.4.3
+        version: 4.4.3
       '@testing-library/react':
         specifier: ^16.3.0
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -87,6 +72,12 @@ importers:
       jsdom:
         specifier: ^26.1.0
         version: 26.1.0
+      katex:
+        specifier: 0.18.9
+        version: 0.18.9
+      markstream-react:
+        specifier: 0.0.55
+        version: 0.0.55(katex@0.18.9)(mermaid@11.16.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(stream-markdown@0.0.16(react@18.3.1)(shiki@4.4.3))
       mdast-util-from-markdown:
         specifier: ^2.0.3
         version: 2.0.3
@@ -96,6 +87,9 @@ importers:
       mdast-util-math:
         specifier: ^3.0.0
         version: 3.0.0
+      mermaid:
+        specifier: 11.16.1
+        version: 11.16.1
       micromark-core-commonmark:
         specifier: ^2.0.4
         version: 2.0.4
@@ -126,9 +120,15 @@ importers:
       react-dom:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
+      shiki:
+        specifier: 4.4.3
+        version: 4.4.3
       simple-icons:
         specifier: ^16.33.0
         version: 16.33.0
+      stream-markdown:
+        specifier: 0.0.16
+        version: 0.0.16(react@18.3.1)(shiki@4.4.3)
       stream-markdown-parser:
         specifier: 1.1.4
         version: 1.1.4
