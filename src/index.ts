@@ -93,8 +93,8 @@ export const Config = z.object({
   }),
 })
 
-/** Tools whose results carry citable URLs (built-in DSH tools and @copylee/dsh-free-search). */
-const SOURCE_TOOLS = 'web_search, web_fetch, multi_search, advanced_search, platform_search'
+/** Tools whose results carry citable URLs (built-in DSH tools, @copylee/dsh-free-search and @copylee/dsh-academic). */
+const SOURCE_TOOLS = 'web_search, web_fetch, multi_search, advanced_search, platform_search, paper_search, paper_get, paper_citations'
 /** Tools whose results carry picture URLs or saved picture paths (@copylee/dsh-free-search). */
 const IMAGE_TOOLS = 'image_search, page_images, save_images'
 /** dsh-image-gen tools whose results carry a `genimg:<job id>` reference. */
