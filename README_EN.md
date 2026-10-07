@@ -15,6 +15,16 @@
   <a href="./README.md">中文</a> · <b>English</b>
 </p>
 
+<p align="center">
+  <img src="assets/citations.png" alt="A reply after a web search: citation chips in the text and an inline picture with its source" width="820" />
+</p>
+
+| Sources panel under the reply | Formulas, tables, highlighted code |
+|---|---|
+| ![The sources panel, expanded: numbered titles](assets/sources.png) | ![A LaTeX formula, a table and a Python code block in one reply](assets/rendering.png) |
+
+The screenshots show the Chinese interface.
+
 ## Why
 
 With web-search plugins such as [`@copylee/dsh-free-search`](https://github.com/copylee711/dsh-free-search), the pages and image walls a search finds appear only in the **tool-call panel**. DSH usually collapses that panel once the call finishes, which leaves the final answer as plain text:

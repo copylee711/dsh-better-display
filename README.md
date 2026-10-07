@@ -15,6 +15,14 @@
   <b>中文</b> · <a href="./README_EN.md">English</a>
 </p>
 
+<p align="center">
+  <img src="assets/citations.png" alt="联网搜索后的回答：正文里的引用角标和带来源说明的配图" width="820" />
+</p>
+
+| 回答末尾的来源面板 | 公式、表格、代码高亮 |
+|---|---|
+| ![来源面板：展开后列出编号与标题](assets/sources.png) | ![同一条回答里的 LaTeX 公式、表格和 Python 代码块](assets/rendering.png) |
+
 ## 为什么需要它
 
 用 [`@copylee/dsh-free-search`](https://github.com/copylee711/dsh-free-search) 等插件联网搜索时，搜到的网页、图片墙只显示在**工具调用面板**里，调用结束后面板通常会被折叠。最终回答只剩一段纯文字：
