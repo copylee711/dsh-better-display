@@ -5,6 +5,7 @@
 </p>
 
 <p align="center">
+  <a href="https://awesome-dsh-plugin.com"><img alt="Awesome DSH Plugin" src="https://awesome-dsh-plugin.com/badge.svg" /></a>
   <a href="https://www.npmjs.com/package/@copylee/dsh-better-display"><img alt="npm version" src="https://img.shields.io/npm/v/@copylee/dsh-better-display?style=flat&color=111111" /></a>
   <a href="https://github.com/copylee711/dsh-better-display/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/copylee711/dsh-better-display/actions/workflows/ci.yml/badge.svg" /></a>
   <a href="https://opensource.org/licenses/MIT"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-111111.svg" /></a>
