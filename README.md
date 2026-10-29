@@ -220,6 +220,8 @@ pnpm pack --dry-run
 - DeepSeek Harness `0.2.0-rc.2` 及以上。`0.1.7` 至 `0.2.0-rc.1` 请用 `0.3.8`，更早的版本请用 `0.1.0`
 - React 18+
 
+`0.4.2` 修复了附件栏的槽位委托问题（[#1](https://github.com/copylee711/dsh-better-display/issues/1)）：仅在有效的下层组件就绪后接管，跟随其注册和卸载，不再因找不到内置附件栏而抛错。无法安全复用的组件继续由宿主渲染；这种情况下，引用图片可能同时出现在引用卡片和原生附件栏中。
+
 ## 致谢
 
 - [dsh-better-markdown](https://github.com/zerob13/dsh-better-markdown)（MIT, © duskzhen）：Markstream 渲染管线、构建配置与样式基础

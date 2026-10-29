@@ -164,6 +164,8 @@ pnpm pack --dry-run
 - DeepSeek Harness `0.2.0-rc.2` or later. Use `0.3.8` for `0.1.7` to `0.2.0-rc.1`, and `0.1.0` for anything older
 - React 18+
 
+`0.4.2` fixes attachment-slot delegation ([#1](https://github.com/copylee711/dsh-better-display/issues/1)): the wrapper waits for a valid lower-ranked component, follows its registration lifetime, and no longer throws when the native rail is unavailable. Components that cannot safely be reused remain under host control; quoted pictures may then appear in both their quote card and the native attachment rail.
+
 ## Credits
 
 - [dsh-better-markdown](https://github.com/zerob13/dsh-better-markdown) (MIT, © duskzhen): Markstream pipeline, build setup and base styles (see `THIRD_PARTY_NOTICES.md`)

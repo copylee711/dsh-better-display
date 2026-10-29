@@ -15,6 +15,7 @@ import { MarkstreamMarkdown } from './renderer.tsx'
 import { quotableRow, selectionToMarkdown } from './selection-markdown.ts'
 import type { SelectionQuote } from './selection-markdown.ts'
 import { useSideAnswers, type SideQuestions } from './side-questions.ts'
+import { isSlotComponent } from './slot-components.ts'
 
 /** What the Host allows (GET plugins/better-display/state). */
 export interface DockState {
@@ -436,8 +437,9 @@ export function createAttachmentRail(quotes: Composer['quotes'], builtin: () => 
   return function QuoteAwareAttachmentRail(props: RailProps): ReactNode {
     useQuoteStore(quotes)
     const Builtin = builtin()
-    // Abdicate to the built-in rail (the slot renders the next entry when this one throws).
-    if (Builtin === undefined) throw new Error('dsh-better-display: built-in attachment rail not found')
+    // Native entries can disappear during teardown/HMR. Optional decoration must never throw
+    // just to ask the host to render its fallback.
+    if (!isSlotComponent(Builtin) || Builtin === undefined) return null
     const hidden = quotes.quotedAttachments()
     if (hidden.size === 0) return <Builtin {...props} />
     return <Builtin {...props} attachments={props.attachments.filter(attachment => !hidden.has(attachment.id))} />

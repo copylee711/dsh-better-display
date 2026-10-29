@@ -22,6 +22,7 @@ import { QuoteStore } from './quotes.ts'
 import { createAttachmentRail, createComposerDock, type DockState } from './selection-ui.tsx'
 import { SIDE_CLOSE_COMMAND, SIDE_RUN_COMMAND, SideQuestions } from './side-questions.ts'
 import { createUserMessageView, userMarkdownSetting } from './user-message.tsx'
+import { registerShadow, shadowedComponent } from './slot-components.ts'
 
 const CUSTOM_COMPONENT_SCOPE = 'dsh-better-display'
 
@@ -37,6 +38,7 @@ interface SlotService {
   register(entry: { name: string, key?: string, id?: string, order?: number, priority?: number, locale?: string }, component: unknown): () => void
   /** Registered entries of a slot (an inspection surface; missing on some hosts). */
   entries?(name: string): ReadonlyArray<{ component: unknown, options: { key?: string, priority?: number } }>
+  subscribe?(name: string, listener: () => void): () => void
 }
 
 /** `remote.commands` of dsh-api-remotes: runs a slash command line in a session. */
@@ -97,20 +99,16 @@ export function apply(ctx: Context): void {
   // The user's own bubbles as Markdown, drawn by the built-in bubble it shadows.
   if (typeof slots.entries === 'function') {
     const UserMessageView = createUserMessageView(kind => {
-      const shadowed = (slots.entries?.('conversation.chat.node') ?? [])
-        .filter(entry => entry.options.key === kind && entry.component !== UserMessageView)
-        .sort((a, b) => (a.options.priority ?? 0) - (b.options.priority ?? 0))[0]
-      return shadowed?.component as ReturnType<Parameters<typeof createUserMessageView>[0]>
+      return shadowedComponent(slots.entries?.('conversation.chat.node') ?? [], ASSISTANT_STEP_PRIORITY, kind) as ReturnType<Parameters<typeof createUserMessageView>[0]>
     })
     slots.inject('conversation.chat.node', () => {
-      const disposers = ['user', 'steering'].map(key => slots.register({ name: 'conversation.chat.node', key, priority: ASSISTANT_STEP_PRIORITY, locale: 'chat' }, UserMessageView))
+      const disposers = ['user', 'steering'].map(key => registerShadow(slots, { name: 'conversation.chat.node', key, priority: ASSISTANT_STEP_PRIORITY, locale: 'chat' }, UserMessageView))
       return () => { for (const dispose of disposers) dispose() }
     })
     // Pictures of quotes show inside their cards, not in the composer's attachment rail.
-    const Rail = createAttachmentRail(composer.quotes, () => (slots.entries?.('conversation.input.attachments') ?? [])
-      .filter(entry => entry.component !== Rail)
-      .sort((a, b) => (a.options.priority ?? 0) - (b.options.priority ?? 0))[0]?.component as ReturnType<Parameters<typeof createAttachmentRail>[1]>)
-    slots.inject('conversation.input.attachments', () => slots.register({ name: 'conversation.input.attachments', priority: ASSISTANT_STEP_PRIORITY, locale: 'conversation' }, Rail))
+    const builtinRail = () => shadowedComponent(slots.entries?.('conversation.input.attachments') ?? [], ASSISTANT_STEP_PRIORITY) as ReturnType<Parameters<typeof createAttachmentRail>[1]>
+    const Rail = createAttachmentRail(composer.quotes, builtinRail)
+    slots.inject('conversation.input.attachments', () => registerShadow(slots, { name: 'conversation.input.attachments', priority: ASSISTANT_STEP_PRIORITY, locale: 'conversation' }, Rail))
     ctx.effect(() => {
       const refresh = () => { void readState().then(state => { userMarkdownSetting.set(state.userMarkdown !== false) }, () => {}) }
       refresh()
