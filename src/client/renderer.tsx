@@ -1009,10 +1009,21 @@ export function BetterAssistantMarkdown({
   )
 }
 
+/**
+ * One assistant step.
+ *
+ * `fileMentions` is optional on purpose: DSH delivers it through the owner props up to 0.2.0 and
+ * through this entry's own inject face from 0.2.2 on, where an entry that registers without `inject`
+ * never receives it. Skipping mentions when it is absent keeps the whole reply rendering.
+ */
+export type AssistantStepProps = Omit<ChatNodeViewProps<'assistant-step'>, 'fileMentions'> & {
+  fileMentions?: ChatNodeViewProps<'assistant-step'>['fileMentions'] | undefined
+}
+
 /** Streaming, settled, and interrupted assistant states rendered through Markstream. */
 export const BetterAssistantNodeView = memo(function BetterAssistantNodeView({
   node, groupPart, useTurnData, turnProcess, openFile, renderMessageImages, fileMentions, cwd, t,
-}: ChatNodeViewProps<'assistant-step'>) {
+}: AssistantStepProps) {
   const data = node.data
   const turn = node.location.kind === 'turn' || node.location.kind === 'step'
     ? node.location.turn
@@ -1024,7 +1035,7 @@ export const BetterAssistantNodeView = memo(function BetterAssistantNodeView({
     return { turn, seq: data.finalNode.seq, openFile }
   }, [data.finalNode, openFile, tail, turn])
   const mentions = useMemo(
-    () => owner === undefined ? undefined : fileMentions(owner),
+    () => owner === undefined || typeof fileMentions !== 'function' ? undefined : fileMentions(owner),
     [fileMentions, owner],
   )
   const reasoningHidden = turnProcess !== undefined
