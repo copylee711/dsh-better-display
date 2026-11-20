@@ -35,7 +35,16 @@ export const ASSISTANT_STEP_PRIORITY = -110
 /** The part of the host slot service this plugin uses (declared by different packages across DSH releases). */
 interface SlotService {
   inject(name: string, setup: () => () => void): void
-  register(entry: { name: string, key?: string, id?: string, order?: number, priority?: number, locale?: string }, component: unknown): () => void
+  register(entry: {
+    name: string
+    key?: string
+    id?: string
+    order?: number
+    priority?: number
+    locale?: string
+    /** Entry business face (DSH 0.2.2+ reads `fileMentions` from here instead of the owner props). */
+    inject?: ((...args: never[]) => Record<string, unknown>) | undefined
+  }, component: unknown): () => void
   /** Registered entries of a slot (an inspection surface; missing on some hosts). */
   entries?(name: string): ReadonlyArray<{ component: unknown, options: { key?: string, priority?: number } }>
   subscribe?(name: string, listener: () => void): () => void
@@ -51,6 +60,14 @@ interface RemoteService {
 }
 
 const STATE_ROUTE = 'plugins/better-display/state'
+
+/**
+ * `chatFileMentions` service of `dsh-client-ui-deliverables`: resolves the files one finished turn
+ * produced into Markdown mention links. Absent when that plugin is not installed.
+ */
+interface ChatFileMentionsService {
+  forClosing(owner: unknown, sessionId: string, getFileTriggerProps?: unknown): unknown
+}
 
 async function readState(): Promise<DockState> {
   const response = await fetch(new URL(STATE_ROUTE, document.baseURI).href, { credentials: 'same-origin', cache: 'no-store' })
@@ -90,6 +107,13 @@ export function apply(ctx: Context): void {
     priority: ASSISTANT_STEP_PRIORITY,
     // ui-chat owns assistant-step and its `chat` locale namespace (DSH 0.1.7+).
     locale: 'chat',
+    // DSH 0.2.2+ hands the closing-turn file mentions to the entry's own inject face instead of the
+    // owner props; without this the renderer would dereference an undefined `fileMentions`.
+    inject: (sessionId: string): Record<string, unknown> => ({
+      fileMentions: (owner: unknown, getFileTriggerProps?: unknown) =>
+        (ctx.get('chatFileMentions') as ChatFileMentionsService | undefined)
+          ?.forClosing(owner, sessionId, getFileTriggerProps),
+    }),
   }, BetterAssistantNodeView))
 
   // Quotes, pictures and side questions from transcript selections (composer dock).
