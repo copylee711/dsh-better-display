@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "更好的显示",
+    "description": "流式 Markdown 渲染：引用角标与来源面板、行内图片、KaTeX 公式、Mermaid 图表与代码高亮。"
+  }
+}

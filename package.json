@@ -1,7 +1,8 @@
 {
   "name": "@copylee/dsh-better-display",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "DeepSeek Harness Web plugin: illustrated assistant replies with GPT-style citation chips and a sources panel for web-search results, on top of streaming markstream-react Markdown.",
+  "icon": "assets/icon.svg",
   "packageManager": "pnpm@10.33.3",
   "author": "copylee711",
   "homepage": "https://github.com/copylee711/dsh-better-display#readme",
@@ -25,9 +26,12 @@
       "default": "./lib/index.js"
     },
     "./client": "./lib/client.js",
+    "./locale/*.json": "./locale/*.json",
     "./package.json": "./package.json"
   },
   "files": [
+    "locale/*.json",
+    "assets/icon.svg",
     "lib/index.js",
     "lib/index.d.ts",
     "lib/client.js",
